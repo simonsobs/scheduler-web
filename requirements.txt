@@ -1,3 +1,7 @@
 streamlit
 streamlit-vis-timeline
 streamlit-ace
+
+pyyaml
+schedlib @ git+https://github.com/simonsobs/scheduler.git@main
+scheduler-server @ git+https://github.com/simonsobs/scheduler-server.git@main
