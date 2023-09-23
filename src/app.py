@@ -29,11 +29,16 @@ if 'commands' not in st.session_state:
     st.session_state.commands = ""
 
 # callback for generate schedule button
-def on_load_schedule(config):
+def on_load_schedule(policy_name, config):
     t0 = dt.datetime.combine(start_date, start_time).astimezone(dt.timezone.utc)
     t1 = dt.datetime.combine(end_date, end_time).astimezone(dt.timezone.utc)
     try:
-        policy = policies.BasicPolicy(**config)
+        if policy_name == 'basic':
+            policy = policies.BasicPolicy(**config)
+        elif policy_name == 'flex':
+            policy = policies.FlexPolicy.from_config(config)
+        else:
+            raise ValueError(f"Unknown policy {policy_name}")
 
         seqs = policy.init_seqs(t0, t1)
         data, groups = utils.seq2visdata_flat(seqs)
@@ -56,8 +61,6 @@ def on_load_schedule(config):
         st.session_state.user_config = {}
         st.error(traceback.format_exc())
 
-config = get_default_config('basic')
-config = nested_update(config, st.session_state.user_config)
 
 st.title("SO Scheduler Web")
 
@@ -73,16 +76,22 @@ with st.sidebar:
     start_time = st.time_input("Start time (UTC)", value=start_time)
     end_date = st.date_input("End date", value=end_date)
     end_time = st.time_input("End time (UTC)", value=end_time)
-    st.button("Generate Schedule", on_click=partial(on_load_schedule, config))
+    policy_name = st.selectbox("Policy", ['flex', 'basic'])
 
-on_load_schedule(config)
-    
+    config = get_default_config(policy_name)
+    # config = nested_update(config, st.session_state.user_config)
+    st.button("Generate Schedule", on_click=partial(on_load_schedule, policy_name, config))
+
+on_load_schedule(policy_name, config)
 tab_vis, tab_config = st.tabs(["Visualization", "Configuration"])
 
 with tab_config:
     st.markdown("## Configuration")
-    config_str = st_ace(yaml.dump(config), language='yaml', key='config')
-    config = yaml.safe_load(config_str)
+    if policy_name == "basic":
+        config_str = st_ace(yaml.dump(config), language='yaml', key='config')
+        config = yaml.safe_load(config_str)
+    else:
+        config = st_ace(config, language='yaml', key='config')
     # put it in the session so next reload will use this config
     st.session_state.user_config = config
 
