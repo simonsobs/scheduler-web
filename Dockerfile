@@ -22,4 +22,4 @@ COPY . /app
 EXPOSE 8501
 
 # Run the app
-ENTRYPOINT ["streamlit", "run", "src/app.py", "--server.address=0.0.0.0", "--browser.gatherUsageStats=false", "--server.fileWatcherType=none"]
+ENTRYPOINT ["streamlit", "run", "src/Home.py", "--server.address=0.0.0.0", "--browser.gatherUsageStats=false", "--server.fileWatcherType=none"]
