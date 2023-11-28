@@ -1,9 +1,10 @@
-import json
 import datetime as dt
 from functools import partial
+import yaml
 
 import streamlit as st
 from streamlit_timeline import st_timeline
+from streamlit_ace import st_ace
 
 from schedlib import policies, core, utils
 from scheduler_server.configs import get_config
@@ -14,47 +15,55 @@ import jax.tree_util as tu
 # utility functions
 # ====================
 
-def block2dict(block, group=None):
-    res = {
-        'id': hash(block),
-        'content': block.name,
-        'start': block.t0.isoformat(),
-        'end': block.t1.isoformat(),
-    }
-    if group is not None: res['group'] = group
-    return res
+
 
 def seq2visdata(seqs):
     # make group
-    is_list = lambda x: isinstance(x, list)
-    groups = []
-    tu.tree_map_with_path(
-        lambda path, x: groups.append({
-            'id': utils.path2key(path), 
-            'content': utils.path2key(path)
-        }), 
-        seqs, 
-        is_leaf=is_list
+    def block2group(path, block):
+        key = utils.path2key(path)
+        if key == '': key = 'root'
+        return {
+            'id': key, 
+            'content': key
+        }
+    groups = tu.tree_leaves(
+        tu.tree_map_with_path(
+            block2group,
+            seqs, 
+            is_leaf=lambda x: isinstance(x, list)
+        ),
+        is_leaf=lambda x: 'id' in x,
     )
+
     # make items
-    seqs = tu.tree_leaves(
+    def block2item(block, group=""):
+        res = {
+            'id': hash(block),
+            'content': block.name,
+            'start': block.t0.isoformat(),
+            'end': block.t1.isoformat(),
+        }
+        if group != "": res['group'] = group
+        return res
+    items = tu.tree_leaves(
         tu.tree_map_with_path(
             lambda path, x: core.seq_map(
-                partial(block2dict, group=utils.path2key(path)), 
+                partial(block2item, group=utils.path2key(path)), 
                 core.seq_sort(x, flatten=True)
             ),
             seqs, 
-            is_leaf=is_list
+            is_leaf=lambda x: isinstance(x, list)
         ),
-        is_leaf=lambda x: 'id' in x)
-    return seqs, groups
+        is_leaf=lambda x: 'id' in x
+    )
+    return items, groups
 
 # ====================
 # initialize session state
 # ====================
 
-if 'user_config' not in st.session_state:
-    st.session_state.user_config = {}
+if 'user_config_str' not in st.session_state:
+    st.session_state.user_config_str = ""
     
 if 'commands' not in st.session_state:
     st.session_state.commands = ""
@@ -80,13 +89,15 @@ with st.sidebar:
     end_time = st.time_input("End time (UTC)", value=end_time)
 
     with st.expander("Advanced"):
-        user_config = st.text_area("Config overwrite:", value=json.dumps(st.session_state.user_config, indent=2), height=300)
+        # user_config = st.text_area("Config overwrite:", value=json.dumps(st.session_state.user_config, indent=2), height=300)
+        user_config_str = st_ace(value=st.session_state.user_config_str, language='yaml')
         try:
-            user_config = json.loads(user_config)
+            user_config = yaml.safe_load(user_config_str)
+            # save a good config on parsing success
+            st.session_state.user_config_str = user_config_str
         except Exception as e:
             st.error('Unable to parse config', icon="🚨")
-            user_config = {}
-        st.session_state.user_config = user_config
+            user_config = yaml.safe_load(st.session_state.user_config_str)
 
     def on_load_schedule():
         t0 = dt.datetime.combine(start_date, start_time).astimezone(dt.timezone.utc)
