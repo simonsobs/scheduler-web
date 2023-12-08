@@ -8,7 +8,7 @@ from streamlit_timeline import st_timeline
 from streamlit_ace import st_ace
 from streamlit_sortables import sort_items
 
-from schedlib import policies, core, utils, source as src
+from schedlib import policies, core, utils
 from scheduler_server.configs import get_config
 
 import jax.tree_util as tu
