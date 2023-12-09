@@ -111,7 +111,7 @@ with st.sidebar:
     user_config = yaml.safe_load(st.session_state.user_config_str)
     user_config['cal_targets'] = cal_targets
     merge_order = list(set([tar[0] for tar in cal_targets])) + ['baseline']
-    st.text("Merge order: ")
+    st.text("Priority: (descending) ")
     merge_order_sorted = sort_items(merge_order)
 
     user_config = yaml.safe_load(st.session_state.user_config_str)
