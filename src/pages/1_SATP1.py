@@ -1,21 +1,23 @@
 import datetime as dt
 from functools import partial
 import yaml
+import pandas as pd
 
 import streamlit as st
 from streamlit_timeline import st_timeline
 from streamlit_ace import st_ace
+from streamlit_sortables import sort_items
 
 from schedlib import policies, core, utils
 from scheduler_server.configs import get_config
 
 import jax.tree_util as tu
 
+SOURCES = ['moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']
+
 # ====================
 # utility functions
 # ====================
-
-
 
 def seq2visdata(seqs):
     # make group
@@ -63,7 +65,7 @@ def seq2visdata(seqs):
 # ====================
 
 if 'user_config_str' not in st.session_state:
-    st.session_state.user_config_str = ""
+    st.session_state.user_config_str = "{}"
     
 if 'commands' not in st.session_state:
     st.session_state.commands = ""
@@ -88,6 +90,63 @@ with st.sidebar:
     end_date = st.date_input("End date", value=end_date)
     end_time = st.time_input("End time (UTC)", value=end_time)
 
+    options = []
+    for _src in SOURCES:
+        options += [
+            [_src, 'left_boresight_0', 50, 0, 'left_focal_plane'],
+            [_src, 'middle_boresight_0', 50, 0, 'middle_focal_plane'],
+            [_src, 'right_boresight_0', 50, 0, 'right_focal_plane'],
+            [_src, 'bottom_boresight_0', 50, 0, 'bottom_focal_plane'],
+            [_src, 'left_boresight_p45', 50, 45, 'left_focal_plane'],
+            [_src, 'middle_boresight_p45', 50, 45, 'middle_focal_plane'],
+            [_src, 'right_boresight_p45', 50, 45, 'right_focal_plane'],
+            [_src, 'bottom_boresight_p45', 50, 45, 'bottom_focal_plane'],
+            [_src, 'left_boresight_n45', 50, -45, 'left_focal_plane'],
+            [_src, 'middle_boresight_n45', 50, -45, 'middle_focal_plane'],
+            [_src, 'right_boresight_n45', 50, -45, 'right_focal_plane'],
+            [_src, 'bottom_boresight_n45', 50, -45, 'bottom_focal_plane']
+        ]
+    cal_targets_candidate = yaml.safe_load(st.session_state.user_config_str).get('cal_targets', [])
+    cal_targets = st.multiselect("Calibration Sources", options=options)
+    user_config = yaml.safe_load(st.session_state.user_config_str)
+    user_config['cal_targets'] = cal_targets
+    merge_order = list(set([tar[0] for tar in cal_targets])) + ['baseline']
+    st.text("Priority: (descending) ")
+    merge_order_sorted = sort_items(merge_order)
+
+    user_config = yaml.safe_load(st.session_state.user_config_str)
+    user_config['cal_targets'] = cal_targets
+    user_config['merge_order'] = merge_order_sorted
+    st.session_state.user_config_str = yaml.dump(user_config) 
+
+    with st.expander("Customize Source", expanded=False):
+        source_name = st.selectbox("Name", options=SOURCES)
+        elevation = st.number_input("Elevation (deg)", value=50.0)
+        boresight_angle = st.selectbox("Boresight angle", options=[0, 45, -45])
+        query = st.multiselect("Array query", options=[
+            'left_boresight_0', 'middle_boresight_0', 'right_boresight_0', 'bottom_boresight_0',
+            'left_boresight_p45', 'middle_boresight_p45', 'right_boresight_p45', 'bottom_boresight_p45',
+            'left_boresight_n45', 'middle_boresight_n45', 'right_boresight_n45', 'bottom_boresight_n45',
+            'ws0', 'ws1', 'ws2', 'ws3', 'ws4', 'ws5', 'ws6',
+        ])
+        tag = st.text_input("Tag", value="")
+        def on_add():
+            user_config = yaml.safe_load(st.session_state.user_config_str)
+            new_entry = [source_name, ",".join(query), elevation, boresight_angle, tag]
+            if 'cal_targets' not in user_config: user_config['sources'] = []
+            user_config['cal_targets'].append(new_entry)
+            st.session_state.user_config_str = yaml.dump(user_config)
+        def on_reset():
+            user_config = yaml.safe_load(st.session_state.user_config_str)
+            user_config['cal_targets'] = []
+            st.session_state.user_config_str = yaml.dump(user_config)
+        st.button("Add source", on_click=on_add)
+        st.button("Reset sources", on_click=on_reset)
+        _sources = yaml.safe_load(st.session_state.user_config_str).get('cal_targets', [])
+        st.table(pd.DataFrame(
+            _sources,
+            columns=['source', 'query', 'elevation', 'boresight', 'tag']))
+        
     with st.expander("Advanced"):
         # user_config = st.text_area("Config overwrite:", value=json.dumps(st.session_state.user_config, indent=2), height=300)
         user_config_str = st_ace(value=st.session_state.user_config_str, language='yaml')
