@@ -139,9 +139,7 @@ with st.form("my data",clear_on_submit=False):
 
     if run_calculation:
         t0 = dt.datetime.combine(start_date, start_time)
-        #st.write( t0.strftime("%Y-%m-%d %H:%M") )
         t1 = dt.datetime.combine(end_date, end_time)
-        #st.write( t1.strftime("%Y-%m-%d %H:%M") )
 
         plot_sun_angles(azimuth, elevation, t0, t1, sampling, thre=keep_out)
 
