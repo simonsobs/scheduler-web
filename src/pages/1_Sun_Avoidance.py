@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 so3gsite = proj.coords.SITES['so']
 site = so3gsite.ephem_observer()
 CHILE = ZoneInfo("America/Santiago")
-
+UTC = dt.timezone.utc
 
 
 def meas_angle(az1, el1, az2, el2):
@@ -73,28 +73,48 @@ def plot_sun_angles(Az, El, start, end, delta, thre=45, site=site, zone=CHILE):
 
     # cross point of the line and the curve
     cp = []
+    message = ""
     for i in range(len(datatime)-1):
         if angle[i] < thre and angle[i+1] > thre:
+            message += "{},{} becomes safe at: {}\n".format(
+                Az, El, 
+                datatime[i].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
+            )
             cp.append(datatime[i])
         elif angle[i] > thre and angle[i+1] < thre:
-            cp.append(datatime[i])
+            x = i-1
+            if x < 0:
+                x=0
+            message += "{},{} becomes UNSAFE at: {}\n".format(
+                Az, El,
+                datatime[x].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
+            )
+            cp.append(datatime[x])
+    if len(cp) == 0:
+        if angle[i] <= thre:
+            message += "{},{} is always UNSAFE\n".format(
+                Az, El, 
+            )
+        else:
+            message += "{},{} is always safe\n".format(
+                Az, El, 
+            )
             
     # plot the cross point
     for i in range(len(cp)):
         ax.axvline(x=cp[i], color='black', linestyle='--')
         
     ax.set_ylabel('Sun angle [deg]')
-    ax.set_xlabel('Time (Local)')
+    if t0.tzinfo == UTC:
+        x = 'UTC'
+    elif t0.tzinfo == CHILE:
+        x = 'CLT'
+    ax.set_xlabel(f'Time ({x})')
     plt.show()
-        
-    thres = []
-    for item in cp:
-        thres.append(item.strftime("%H:%M"))
-        
-    thres_txt = ", ".join(thres)
+
     st.pyplot(fig)
 
-    st.write(f"{thre} deg threshold: " + thres_txt) 
+    st.text(f"{thre} deg threshold: \n" + message) 
 
 
 with st.form("my data",clear_on_submit=False):
@@ -107,7 +127,12 @@ with st.form("my data",clear_on_submit=False):
     left_column,  right_column = st.columns(2)
 
     with left_column:
-        now = dt.datetime.now().astimezone(CHILE)
+        tz = st.selectbox("TimeZone", ("CLT", "UTC") )
+        if tz == "UTC":
+            use_TZ = UTC
+        elif tz == "CLT":
+            use_TZ = CHILE
+        now = dt.datetime.now().astimezone(use_TZ)
         start_date = now.date()
         start_time = now.time()
 
@@ -115,12 +140,12 @@ with st.form("my data",clear_on_submit=False):
         end_time = start_time
 
         start_date = st.date_input("Start date", value=start_date)
-        start_time = st.time_input("Start time (CLT)", value=start_time)
+        start_time = st.time_input("Start time", value=start_time)
         end_date = st.date_input("End date", value=end_date)
-        end_time = st.time_input("End time (CLT)", value=end_time)
+        end_time = st.time_input("End time", value=end_time)
 
         sampling = st.number_input(
-            "Sampling (min)", min_value=1, max_value=60, value=10
+            "Sampling (min)", min_value=1, max_value=60, value=5
         )
 
         
@@ -138,8 +163,8 @@ with st.form("my data",clear_on_submit=False):
     run_calculation = st.form_submit_button("Calculate")
 
     if run_calculation:
-        t0 = dt.datetime.combine(start_date, start_time)
-        t1 = dt.datetime.combine(end_date, end_time)
+        t0 = dt.datetime.combine(start_date, start_time, tzinfo=use_TZ)
+        t1 = dt.datetime.combine(end_date, end_time, tzinfo=use_TZ)
 
         plot_sun_angles(azimuth, elevation, t0, t1, sampling, thre=keep_out)
 
