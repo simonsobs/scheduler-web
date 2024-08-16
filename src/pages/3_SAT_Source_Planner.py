@@ -23,9 +23,9 @@ from sotodlib import coords, core as todlib_core
 
 import jax.tree_util as tu
 
-"""
+""" How to run this in your own directory
 streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=false --server.fileWatcherType=none --server.port 8075
-"""
+""";
 
 geometry = make_geometry()
 
@@ -80,6 +80,28 @@ def tod_from_block( block, ndet=100 ):
 
     return tod
 
+def plot_focal_plane(ax, tod):
+    roll = np.mean(tod.boresight.roll)
+
+    for waf in geometry:
+        xi0, eta0 = geometry[waf]['center']
+        R = geometry[waf]['radius']
+        phi = np.arange(tod.dets.count) * 2*np.pi / tod.dets.count
+        qwafer = quat.rotation_xieta(xi0 * coords.DEG, eta0 * coords.DEG)
+        qdets = quat.rotation_xieta(R * coords.DEG * np.cos(phi),
+                                    R * coords.DEG * np.sin(phi))
+        if roll != 0:
+            q_bore_rot = quat.euler(2, -roll )#* coords.DEG)
+            qwafer = q_bore_rot * qwafer
+            qdets = q_bore_rot * qdets
+
+        xi_c, eta_c, _ = quat.decompose_xieta(qwafer )
+        xid, etad, _ = quat.decompose_xieta(qwafer * qdets)
+
+        ax.scatter( xid, etad, marker='.')
+        ax.text( xi_c, eta_c, waf)
+
+
 def get_focal_plane(tod):
     xid_list = []
     etad_list = []
@@ -120,7 +142,6 @@ if 'timing' not in st.session_state:
     st.session_state['timing']['t1'] = dt.datetime.combine(
         end_date, end_time, tzinfo=dt.timezone.utc
     )
-    st.session_state['timing']['sun_avoid'] = 45
 
 
 left_column, right_column = st.columns(2)
@@ -202,7 +223,7 @@ if st.button('Plot Sources'):
     plt.ylim(0,90)
     plt.legend()
 
-    plt.xlabel("Azimuth (deg)")
+    #plt.xlabel("Time")
     plt.ylabel("Elevation (deg)")
     ax.set_title(
         f"{t0.strftime('%Y-%m-%d %H:%M')} to "
@@ -311,8 +332,9 @@ with st.form("my data",clear_on_submit=False):
             ax = fig.add_subplot(111)
         
             tod = tod_from_block(block)
-            xi_fp, eta_fp = get_focal_plane(tod)
-            ax.scatter(xi_fp, eta_fp, c='k', alpha=0.5)
+            #xi_fp, eta_fp = get_focal_plane(tod)
+            #ax.scatter(xi_fp, eta_fp, c='k', alpha=0.5)
+            plot_focal_plane(ax, tod)
 
             csl = CelestialSightLine.az_el(
                 tod.timestamps, tod.boresight.az, tod.boresight.el, weather='vacuum')
@@ -326,5 +348,6 @@ with st.form("my data",clear_on_submit=False):
             xip, etap, _ = quat.decompose_xieta(
                 ~csl.Q * quat.rotation_lonlat(ra0, dec0)
             )
-            plt.plot(xip, etap, alpha=0.5)
+            ax.plot(xip, etap, alpha=0.5)
+            ax.set_title( block.t0.isoformat() + f'\n{block.az} throw:{block.throw}' )
             st.pyplot(fig)
