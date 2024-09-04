@@ -158,8 +158,11 @@ with st.form("my data",clear_on_submit=False):
         )    
 
         keep_out = st.number_input(
-            "Keep Out Angle (deg)", min_value=0, max_value=90, value=41
+            "Keep Out Angle (deg)", 
+            min_value=0, max_value=90, value=49
         )
+        st.write("Absorptive Baffle: 41 deg")
+        st.write("Reflective Baffle: 49 deg")
     run_calculation = st.form_submit_button("Calculate")
 
     if run_calculation:
