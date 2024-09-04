@@ -13,7 +13,6 @@ from streamlit_sortables import sort_items
 
 from schedlib import policies, core, utils
 from schedlib import rules as ru, source as src, instrument as inst
-from scheduler_server.configs import get_config
 
 from schedlib.policies.satp1 import make_geometry
 from schedlib.thirdparty import SunAvoidance
@@ -29,12 +28,6 @@ streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=
 
 geometry = make_geometry()
 
-
-basedir = '/so/home/kmharrin/software/scheduler-scripts/satp1'
-schedule_files = {
-    50 : os.path.join(basedir, 'master_files/cmb_2024_el50_20240423.txt'),
-    60 : os.path.join(basedir, 'master_files/cmb_2024_el60_20240423.txt'),
-}
 
 array_focus = {
     0 : {
@@ -60,7 +53,7 @@ array_focus = {
     },
 }
 
-SOURCES = ['Moon', 'Jupiter', 'Saturn']
+SOURCES = ['Moon', 'Jupiter', 'Saturn', 'TauA']
 
 def tod_from_block( block, ndet=100 ):
     # pretty sure these are in degrees
@@ -339,6 +332,12 @@ with st.form("my data",clear_on_submit=False):
             csl = CelestialSightLine.az_el(
                 tod.timestamps, tod.boresight.az, tod.boresight.el, weather='vacuum')
             ra, dec, _ = quat.decompose_lonlat(csl.Q)
+            if source.lower() == 'taua':
+                x = [
+                    x for x in coords.planets.SOURCE_LIST if isinstance(x, tuple) and x[0] =='tauA'
+                ][0]
+                source = f"J{x[1]}+{x[2]}"
+
             src_path = coords.planets.SlowSource.for_named_source(
                   source, tod.timestamps.mean()
             )
