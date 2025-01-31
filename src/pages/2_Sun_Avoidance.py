@@ -29,67 +29,63 @@ def meas_angle(az1, el1, az2, el2):
 
 
 def sun_angles(
-    start: dt.datetime, 
-    end: dt.datetime, 
-    delta: float, 
-    Az:float, 
-    El:float, 
+    tt: list, 
+    Az: float, 
+    El: float, 
     site:ephem.Observer=site, 
-    zone:ZoneInfo=CHILE):
-
-    delta = dt.timedelta(minutes=delta)
+    ):
     
     az = np.deg2rad(Az)
     el = np.deg2rad(El)
     
     data = []
-    i = 0
+
 
     # Calculate sun position every 10 minutes
-    current_time = start
-    while current_time <= end:
-        site.date = ephem.Date(current_time)
-        current_time += delta
-
+    for t in tt:
+        site.date = ephem.Date(t)
         sun = ephem.Sun(site)
 
         az_sun = sun.az
         el_sun = sun.alt
         
         angle = meas_angle(az, el, az_sun, el_sun)
-        data.append([current_time, angle])
+        data.append(angle)
     
-    return np.array(data)
+    return data
 
-def plot_sun_angles(Az, El, start, end, delta, thre=45, site=site, zone=CHILE):
-    
-    data = sun_angles(start, end, delta, Az, El, site=site, zone=zone)
-    datatime = [data[i][0] for i in range(len(data))]
-    angle = [data[i][1] for i in range(len(data))]
+def plot_sun_angles(Az, El, start, end, delta, thre=45, site=site):
+    n = int(
+        (end-start).total_seconds()/dt.timedelta(minutes=delta).total_seconds()
+    )
+    delta = (end-start)/n
+    tt = np.array([start+i*delta for i in range(n)])
+
+    angle = sun_angles(tt, Az, El, site=site)
 
     fig, ax = plt.subplots(figsize=(9, 5))  # Adjust as needed
-    ax.plot(datatime, angle)
+    ax.plot(tt, angle)
     ax.axhline(y=thre, color='r', linestyle='-')
 
     # cross point of the line and the curve
     cp = []
     message = ""
-    for i in range(len(datatime)-1):
+    for i in range(len(tt)-1):
         if angle[i] < thre and angle[i+1] > thre:
             message += "{},{} becomes safe at: {}\n".format(
                 Az, El, 
-                datatime[i].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
+                tt[i].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
             )
-            cp.append(datatime[i])
+            cp.append(tt[i])
         elif angle[i] > thre and angle[i+1] < thre:
             x = i-1
             if x < 0:
                 x=0
             message += "{},{} becomes UNSAFE at: {}\n".format(
                 Az, El,
-                datatime[x].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
+                tt[x].astimezone(t0.tzinfo).strftime("%Y-%m-%d  %H:%M")
             )
-            cp.append(datatime[x])
+            cp.append(tt[x])
     if len(cp) == 0:
         if angle[i] <= thre:
             message += "{},{} is always UNSAFE\n".format(
@@ -115,6 +111,30 @@ def plot_sun_angles(Az, El, start, end, delta, thre=45, site=site, zone=CHILE):
     st.pyplot(fig)
 
     st.text(f"{thre} deg threshold: \n" + message) 
+
+def plot_sun_keepout(
+        elevation, start, end, delta, thre=45, site=site,
+    ):
+    az_grid = np.linspace(-90,450,541)
+    n = int((end-start).total_seconds()/dt.timedelta(minutes=5).total_seconds())
+    delta = (end-start)/n
+    tt = np.array([start+i*delta for i in range(n)])
+    angles = np.zeros( (len(az_grid), len(tt)) )
+    for a in range(len(az_grid)):
+        angles[a,:] = sun_angles( tt, az_grid[a], elevation, 
+                                site=site,)
+    
+    fig, ax = plt.subplots(figsize=(9, 7))  # Adjust as needed
+    test= ax.imshow(angles.transpose(), origin='lower',aspect='auto',
+            extent = [np.min(az_grid), np.max(az_grid), tt[0], tt[-1]])
+    cb = fig.colorbar(test,ax=ax)
+    cb.set_label('Sun Dist (deg)')
+    ax.contour(az_grid, tt, angles.transpose(), levels=[thre], colors=['w'])
+    ax.set_xlabel("Azimuth (deg)")
+    ax.set_title(f"{t0} - Elevation = {elevation} deg")
+    ax.grid()
+    st.pyplot(fig)
+
 
 
 with st.form("my data",clear_on_submit=False):
@@ -170,4 +190,6 @@ with st.form("my data",clear_on_submit=False):
         t1 = dt.datetime.combine(end_date, end_time, tzinfo=use_TZ)
 
         plot_sun_angles(azimuth, elevation, t0, t1, sampling, thre=keep_out)
+        plot_sun_keepout(elevation, t0, t1, sampling, thre=keep_out, site=site,)
+
 
