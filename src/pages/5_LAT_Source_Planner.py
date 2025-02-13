@@ -295,6 +295,13 @@ with st.form("my data",clear_on_submit=False):
             value=50,
             step=1,
         )
+        corotator = st.number_input(
+            "co-rotator (deg)",
+            min_value = -45,
+            max_value = 45,
+            value=0,
+            step=1,
+        )
 
     with col3:
         i4_ws0 = st.checkbox("i4_ws0", value=False)
@@ -368,7 +375,7 @@ with st.form("my data",clear_on_submit=False):
             array_info=array_info,
             el_bore=elevation,
             drift=True,
-            boresight_rot=0, 
+            boresight_rot= -1*(elevation-60-corotator), 
             allow_partial=True,
         )
         scan_blocks = ces_rule(src_blocks)
