@@ -25,7 +25,7 @@ geometry = make_geometry()
 
 
 SOURCES = [
-    'Moon', 'Jupiter', 'Saturn', 'TauA', 'Uranus', 'Neptune', 'Mars', 'Table'
+    'Moon', 'Jupiter', 'Saturn', 'TauA', 'Uranus', 'Neptune', 'Mars', 'galcenter', 'Table'
 ]
 
 def tod_from_block( block, ndet=100 ):
@@ -148,6 +148,8 @@ sources = st.multiselect("Sources", SOURCES, SOURCES)
 st.write("Tabled Source info will be added it Table is included in the selected sources.")
 new_sources = pd.DataFrame(
     [
+        {'name': 'cenA', 'ra': 13.416, 'dec': -43.01, 'add_to_plot': True} ,
+        {'name': 'sgrb2', 'ra': -93.17, 'dec': -28.38, 'add_to_plot': True} ,
         {'name': '1', 'ra': -16.509, 'dec': 16.1484, 'add_to_plot': True} ,
         {'name': '2', 'ra': -172.722, 'dec': 2.0521, 'add_to_plot': True} ,
         {'name': '3', 'ra': -81.5836, 'dec': -21.0609, 'add_to_plot': True} ,
@@ -158,21 +160,21 @@ new_sources = pd.DataFrame(
         {'name': '8', 'ra': 32.6923, 'dec': -51.0171, 'add_to_plot': True} ,
         {'name': '9', 'ra': 1.5581, 'dec': -6.3932, 'add_to_plot': True} ,
         {'name': '10', 'ra': 133.703, 'dec': 20.1085, 'add_to_plot': True} ,
-        {'name': '11', 'ra': -7.6762, 'dec': -47.5054, 'add_to_plot': True} ,
-        {'name': '12', 'ra': -30.474, 'dec': -15.019, 'add_to_plot': True} ,
-        {'name': '13', 'ra': 67.168, 'dec': -37.9389, 'add_to_plot': True} ,
-        {'name': '14', 'ra': -45.9318, 'dec': -47.2465, 'add_to_plot': True} ,
-        {'name': '15', 'ra': -72.2095, 'dec': -20.1153, 'add_to_plot': True} ,
-        {'name': '16', 'ra': 57.1588, 'dec': -27.8203, 'add_to_plot': True} ,
-        {'name': '17', 'ra': 80.7414, 'dec': -36.4585, 'add_to_plot': True} ,
-        {'name': '18', 'ra': -35.8393, 'dec': 0.6982, 'add_to_plot': True} ,
-        {'name': '19', 'ra': 73.9611, 'dec': -46.2662, 'add_to_plot': True} ,
-        {'name': '20', 'ra': -22.583, 'dec': -8.5485, 'add_to_plot': True} ,
-        {'name': '21', 'ra': -7.3508, 'dec': -37.4104, 'add_to_plot': True} ,
-        {'name': '22', 'ra': 79.9577, 'dec': -45.778, 'add_to_plot': True} ,
-        {'name': '23', 'ra': 127.953, 'dec': 4.4941, 'add_to_plot': True} ,
-        {'name': '24', 'ra': 75.3033, 'dec': -1.9871, 'add_to_plot': True} ,
-        {'name': '25', 'ra': -105.463, 'dec': 7.691, 'add_to_plot': True} ,
+        {'name': '11', 'ra': -7.6762, 'dec': -47.5054, 'add_to_plot': False} ,
+        {'name': '12', 'ra': -30.474, 'dec': -15.019, 'add_to_plot': False} ,
+        {'name': '13', 'ra': 67.168, 'dec': -37.9389, 'add_to_plot': False} ,
+        {'name': '14', 'ra': -45.9318, 'dec': -47.2465, 'add_to_plot': False} ,
+        {'name': '15', 'ra': -72.2095, 'dec': -20.1153, 'add_to_plot': False} ,
+        {'name': '16', 'ra': 57.1588, 'dec': -27.8203, 'add_to_plot': False} ,
+        {'name': '17', 'ra': 80.7414, 'dec': -36.4585, 'add_to_plot': False} ,
+        {'name': '18', 'ra': -35.8393, 'dec': 0.6982, 'add_to_plot': False} ,
+        {'name': '19', 'ra': 73.9611, 'dec': -46.2662, 'add_to_plot': False} ,
+        {'name': '20', 'ra': -22.583, 'dec': -8.5485, 'add_to_plot': False} ,
+        {'name': '21', 'ra': -7.3508, 'dec': -37.4104, 'add_to_plot': False} ,
+        {'name': '22', 'ra': 79.9577, 'dec': -45.778, 'add_to_plot': False} ,
+        {'name': '23', 'ra': 127.953, 'dec': 4.4941, 'add_to_plot': False} ,
+        {'name': '24', 'ra': 75.3033, 'dec': -1.9871, 'add_to_plot': False} ,
+        {'name': '25', 'ra': -105.463, 'dec': 7.691, 'add_to_plot': False} ,
     ]
 )
 added_sources = st.data_editor(new_sources, num_rows="dynamic")
@@ -208,14 +210,20 @@ if st.button('Plot Sources'):
     st.header("Source Availability")
     st.write("Lighter line indicates source is cut by sun avoidance")
 
-    fig = plt.figure(figsize=(8,3.75))
-    ax = fig.add_subplot(111)
+    fig = plt.figure(figsize=(8,6.75))
+    ax = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212)
     sun = SunAvoidance(
         min_angle=sun_avoid_angle, 
         min_sun_time=sun_avoid_time*60
     )
 
     for c, source in enumerate(sources):
+        if c > 10:
+            ls = '--'
+        else:
+            ls = '-'
+        cnum = c%10
         src_blocks = src.source_gen_seq(source.lower(), t0, t1)
         
         for block in src_blocks:
@@ -223,9 +231,9 @@ if st.button('Plot Sources'):
             if np.max(alt) < filter_elevation:
                 print(f"Source {source} skipped, max el = {np.max(alt)}")
                 continue
-            plt.plot(
+            ax.plot(
                 [dt.datetime.utcfromtimestamp(x) for x in t], 
-                alt, f'C{c%10}-', alpha=0.3
+                alt, f'C{cnum}{ls}', alpha=0.3
             )
         
         src_blocks = core.seq_flatten(sun.apply(src_blocks))
@@ -239,24 +247,29 @@ if st.button('Plot Sources'):
             if np.max(alt) < filter_elevation:
                 print(f"Source {source} skipped, max el = {np.max(alt)}")
                 continue
-            plt.plot([dt.datetime.utcfromtimestamp(x) for x in t], 
-                alt, f'C{c%10}-', label=lab)
+            ax.plot([dt.datetime.utcfromtimestamp(x) for x in t], 
+                alt, f'C{cnum}{ls}', label=lab)
+            ax2.plot(np.mod(az[::120],360), alt[::120], f'C{cnum}{ls}o', label=lab)
 
     locator = mdates.AutoDateLocator()
     formatter = mdates.ConciseDateFormatter(locator)
 
     ax.xaxis.set_major_locator(locator)
     ax.xaxis.set_major_formatter(formatter)
-    plt.xticks()
-    plt.ylim(0,90)
-    plt.legend()
+    #ax.set_xticks()
+    ax.set_ylim(0,90)
+    ax.legend(ncol=4, loc=1)
 
     #plt.xlabel("Time")
-    plt.ylabel("Elevation (deg)")
+    ax.set_ylabel("Elevation (deg)")
     ax.set_title(
         f"{t0.strftime('%Y-%m-%d %H:%M')} to "
         f"{t1.strftime('%Y-%m-%d %H:%M')}"
     )
+
+    ax2.set_ylim(0,90)
+    ax2.set_xlabel("Azimuth (deg)")
+    ax2.set_ylabel("Elevation (deg)")
     st.pyplot(fig)
 
 with st.form("my data",clear_on_submit=False):
