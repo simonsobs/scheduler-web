@@ -5,6 +5,6 @@ streamlit-sortables
 
 pandas
 pyyaml
-sotodlib@git+https://github.com/simonsobs/sotodlib.git@v0.6.2
+sotodlib @ git+https://github.com/simonsobs/sotodlib.git@master#egg=sotodlib
 schedlib @ git+https://github.com/simonsobs/scheduler.git@main
 scheduler-server @ git+https://github.com/simonsobs/scheduler-server.git@main
