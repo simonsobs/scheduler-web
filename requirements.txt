@@ -8,3 +8,4 @@ pyyaml
 schedlib @ git+https://github.com/simonsobs/scheduler.git@main
 scheduler-server @ git+https://github.com/simonsobs/scheduler-server.git@main
 sotodlib @ git+https://github.com/simonsobs/sotodlib.git@master
+
