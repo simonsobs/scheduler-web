@@ -1,6 +1,7 @@
 import datetime as dt
 import yaml
 import os
+import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
@@ -44,9 +45,7 @@ schedule_files = {
 
 now = dt.datetime.utcnow()
 init_start_date = now.date()
-init_start_time = now.time()
 init_end_date = init_start_date + dt.timedelta(days=7)
-init_end_time = init_start_time
 
 left_column, right_column = st.columns(2)
 
@@ -73,7 +72,7 @@ with right_column:
         key='start_time'
     )
     end_time = st.time_input("End time (UTC)", 
-        value=init_end_time,
+        value="now", 
         key='end_time'
     )
 
@@ -115,6 +114,26 @@ if st.button('Plot Plan'):
     seq = policy.init_seqs(t0, t1)
     seq = policy.apply(seq)
 
+    data = np.zeros( (0,6))
+    def block_to_arr(block):
+        return np.array([
+            block.t0, block.alt, 
+            block.boresight_angle, 
+            block.hwp_dir, block.az_speed,
+            block.az_accel
+        ])
+
+
+    data = np.vstack( (data, block_to_arr(seq[0])) )
+    for block in seq:
+        if np.all( data[-1,1:]==block_to_arr(block)[1:]  ):
+            continue
+        data = np.vstack( (data, block_to_arr(block)) )
+
+    df = pd.DataFrame(
+        data, columns=['Datetime', 'Elevation', 'Boresight', 'HWP Direction', 'Scan Speed', 'Scan Accel'],
+    )
+    st.table(df)
     with _lock:
         fig = plt.figure(figsize=(8,8))
         ax1 = fig.add_subplot(5,1,1)
