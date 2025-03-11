@@ -213,7 +213,8 @@ if st.button('Plot Observations'):
     t1 = dt.datetime.combine(
         end_date, end_time, tzinfo=dt.timezone.utc
     )
-    
+    fig = plot_colortable(colors, ncols=4, sort_colors=False)
+    st.pyplot(fig)
     for platform in platforms:
         ctx = core.Context(f"/so/metadata/{platform}/contexts/basic.yaml")
         temp_t0 = t0
