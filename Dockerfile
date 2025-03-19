@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y python3 \
 
 # Install python dependencies
 COPY requirements.txt /app
+RUN pip install --upgrade pip
 RUN pip install -r /app/requirements.txt
 
 # Copy the app into the image
