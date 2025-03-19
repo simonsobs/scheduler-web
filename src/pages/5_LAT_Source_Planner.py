@@ -289,8 +289,6 @@ with st.form("my data",clear_on_submit=False):
             index=0,
         )
 
-        if source.lower() == "table":
-            raise NotImplementedError("table input not yet implemented")
     with col2:
         c1_ws0 = st.checkbox("c1_ws0", value=False)
         c1_ws1 = st.checkbox("c1_ws1", value=False)
@@ -341,7 +339,9 @@ with st.form("my data",clear_on_submit=False):
         )
 
     run_calculation = st.form_submit_button("Calculate")
-    if run_calculation:
+    if run_calculation and source.lower() == "table":
+            st.warning("Plotting source from Table not implemented")
+    elif run_calculation:
         arr = [
             'c1_ws0', 'c1_ws1', 'c1_ws2', 
             'i1_ws0', 'i1_ws1', 'i1_ws2', 
@@ -370,6 +370,7 @@ with st.form("my data",clear_on_submit=False):
             raise ValueError("how did I get here?")
 
         st.write(f"Target String is {target_str}")
+        
 
         t0=st.session_state['timing']['t0']
         t1=st.session_state['timing']['t1']
