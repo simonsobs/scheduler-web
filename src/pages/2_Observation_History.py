@@ -184,6 +184,7 @@ init_end_date = now.date()
 left_column, right_column = st.columns(2)
 all_platforms = ["satp1", "satp2", "satp3", "lat"]
 
+st.title("Observation History")
 with left_column:
     start_date = st.date_input(
         "Start date", value=init_start_date, key='start_date',
@@ -205,7 +206,10 @@ with right_column:
         key='end_time'
     )
 
-
+st.write(
+    """Note: book binding and obsdb building can lag by up to six hours during
+    normal operations. Lags beyond that can indicate issues with data packaging."""
+)
 if st.button('Plot Observations'):
     t0 = dt.datetime.combine(
         start_date, start_time, tzinfo=dt.timezone.utc
