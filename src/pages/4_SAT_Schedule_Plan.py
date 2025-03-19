@@ -13,7 +13,9 @@ from schedlib.policies.satp2 import SATP2Policy
 from schedlib.policies.satp3 import SATP3Policy
 
 from matplotlib.backends.backend_agg import RendererAgg
-_lock = RendererAgg.lock
+from threading import RLock
+
+_lock = RLock()
 
 """ How to run this in your own directory
 streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=false --server.fileWatcherType=none --server.port 8075

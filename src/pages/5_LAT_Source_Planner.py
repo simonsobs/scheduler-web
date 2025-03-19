@@ -288,6 +288,9 @@ with st.form("my data",clear_on_submit=False):
             SOURCES,
             index=0,
         )
+
+        if source.lower() == "table":
+            raise NotImplementedError("table input not yet implemented")
     with col2:
         c1_ws0 = st.checkbox("c1_ws0", value=False)
         c1_ws1 = st.checkbox("c1_ws1", value=False)
@@ -355,7 +358,7 @@ with st.form("my data",clear_on_submit=False):
             i5_ws0, i5_ws1, i5_ws2, 
             i6_ws0, i6_ws1, i6_ws2,
         ]
-        
+
         if target == "custom":          
             target_str = ','.join( [arr[i] for i in range(len(arr)) if x[i]])
         elif target == "all":
@@ -400,7 +403,7 @@ with st.form("my data",clear_on_submit=False):
         for block in scan_blocks:
             fig = plt.figure(figsize=(5,3.75))
             ax = fig.add_subplot(111)
-        
+
             tod = tod_from_block(block)
             #xi_fp, eta_fp = get_focal_plane(tod)
             #ax.scatter(xi_fp, eta_fp, c='k', alpha=0.5)
