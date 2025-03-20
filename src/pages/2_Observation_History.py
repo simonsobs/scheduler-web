@@ -16,10 +16,16 @@ colors = {
     'jupiter': np.array([3, 24, 130])/255., ## jupiter dark
     'moon_targeted': np.array([197, 7, 240])/255., ## moon bright
     'moon': np.array([107, 3, 130])/255., ## moon dark
+    'mars_targeted':  np.array([5, 46, 252])/255., ## jupiter light
+    'mars': np.array([3, 24, 130])/255., ## jupiter dark
+    'uranus_targeted': np.array([197, 7, 240])/255., ## moon bright
+    'uranus': np.array([107, 3, 130])/255., ## moon dark
     'saturn': np.array([252, 186, 3])/255.,
     'tauA': np.array([240, 99, 12])/255.,
     'calibration_other': (0, 0, 0),
+    'calibration_other_targeted':  np.array([111, 111, 111])/255.,
     'streaming_other': (1, 0, 0),
+
 }
 
 def get_color_for_obs(ctx, obs, wafer, tube=None):
@@ -45,12 +51,25 @@ def get_color_for_obs(ctx, obs, wafer, tube=None):
                 my_color = colors['moon_targeted']
             else:
                 my_color = colors['moon']
+        elif 'mars' in tags:
+            if target in tags:
+                my_color = colors['mars_targeted']
+            else:
+                my_color = colors['mars']
+        elif 'uranus' in tags:
+            if target in tags:
+                my_color = colors['uranus_targeted']
+            else:
+                my_color = colors['uranus']
         elif 'saturn' in tags:
             my_color = colors['saturn']
         elif 'taua' in tags:
             my_color = colors['tauA']
         else:
-            my_color = colors['calibration_other']
+            if target in tags:
+                my_color = colors['calibration_other_targeted']
+            else:
+                my_color = colors['calibration_other']
     else:
         my_color = colors['streaming_other']
     return my_color
