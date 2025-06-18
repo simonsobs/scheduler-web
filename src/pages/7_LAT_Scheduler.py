@@ -1,8 +1,13 @@
 import os
 import yaml
 
-import argparse
+import pandas as pd
 import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+import argparse
 import datetime as dt
 from schedlib import utils as u, source as src
 from schedlib.quality_assurance import SunCrawler
@@ -16,6 +21,79 @@ from threading import RLock
 logger = u.init_logger(__name__)
 
 _lock = RLock()
+
+def build_table(t0, t1, cfg, seq, cmds, state, platform):
+
+    total_duration = (u.str2datetime(t1) - u.str2datetime(t0)).total_seconds()
+
+    columns = ['#   Start Time UTC', 'Stop Time UTC', 'dur', 'corot',  'az', 'el', 'az_speed', 'az_accel', 'name', 'tag']
+    df = pd.DataFrame(columns=columns)
+
+    skip = ['lat.preamble', 'start_time', 'move_to', 'wait_until']
+
+    corot = state.corotator_now
+    az_speed = state.az_speed_now
+    az_accel = state.az_accel_now
+
+    total_cmb_time = 0
+    total_source_time = 0
+    total_setup_time = 0
+
+    for ir in cmds:
+        if ir.name in skip or (ir.t1 - ir.t0).total_seconds() <= 0.01:
+            continue
+        if ir.block is not None:
+            corot = ir.block.corotator_angle
+            tag = ir.block.tag
+            az_speed = ir.block.az_speed
+            az_accel = ir.block.az_accel
+
+            if ir.name == 'lat.cmb_scan':
+                total_cmb_time += (ir.t1 - ir.t0).total_seconds()
+            elif ir.name == 'lat.source_scan':
+                total_source_time += (ir.t1 - ir.t0).total_seconds()
+            else:
+                total_setup_time += (ir.t1 - ir.t0).total_seconds()
+
+        row = {'#   Start Time UTC': ir.t0, 'Stop Time UTC': ir.t1, 'dur': (ir.t1 - ir.t0).total_seconds(), 'corot': corot,
+                'az': np.round(ir.block.az,2), 'el': np.round(ir.block.alt,2),
+                'az_speed': az_speed, 'az_accel': az_accel, 'name': ir.name, 'tag': tag}
+
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+    names = sorted(df['name'].unique())
+    cmap = plt.get_cmap('tab10', len(names))
+    name_colors = {name: cmap(i) for i, name in enumerate(names)}
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for _, row in df.iterrows():
+        ax.barh(
+            y=0,
+            width=row['Stop Time UTC'] - row['#   Start Time UTC'],
+            left=row['#   Start Time UTC'],
+            height=0.4,
+            color=name_colors[row['name']],
+            edgecolor=name_colors[row['name']],
+            label=row['name']
+        )
+
+    ax.axvline(t0, color='black', linestyle='-', linewidth=1.5)
+    ax.axvline(t1, color='black', linestyle='-', linewidth=1.5)
+
+    handles, labels = ax.get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+    ax.legend(unique.values(), unique.keys(), title='Name', loc='upper right')
+
+    ax.set_yticks([])
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+    plt.xticks(rotation=45)
+    plt.title(f"CMB: {np.round(100*total_cmb_time/total_duration,0)}% | Cal: {np.round(100*total_source_time/total_duration,0)}% | "
+                f"Setup: {np.round(100*total_setup_time/total_duration,0)}% | Other: {np.round(100 - 100*(total_cmb_time + total_setup_time + total_source_time)/total_duration,0)}%")
+    plt.grid(True, axis='x', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+    return fig
 
 schedule_base_dir = os.environ.get("LAT_SCHEDULE_BASE_DIR", 'master_schedules/')
 
@@ -31,42 +109,44 @@ with left_column:
 
     start_date = st.date_input("Start date", value=dt.date.today(), key='start_date')
     end_date = st.date_input("End date", value=init_end_date, key='end_date')
+    start_time = st.time_input("Start time (UTC)", value=dt.datetime.utcnow().time(), key='start_time')
+    end_time = st.time_input("End time (UTC)", value=dt.datetime.utcnow().time(), key='end_time')
+
+    az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
+    az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
+    az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
+    el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
+    xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
+    eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
+
+    iv_cadence = st.number_input("IV Cadence (seconds)", value=14400)
+    relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
+    bias_step_cadence = st.number_input("Bias Step Cadence (seconds)", value=1800)
+
+with right_column:
     use_cal_file = st.checkbox("Use Calibration File", value=False)
+    no_cmb = st.checkbox("No CMB", value=False)
+    az_motion_override = st.checkbox("Az Motion Override", value=False)
+    apply_corotator_rotation = st.checkbox("Apply Corotator Rotation", value=False)
+    elevations_under_90 = st.checkbox("Elevations Under 90", value=True)
+    open_shutter = st.checkbox("Open Shutter", value=True)
+    close_shutter = st.checkbox("Close Shutter", value=True)
+    drift_override = st.checkbox("Drift Override (Cal Sources)", value=True)
+    allow_partial_override = st.checkbox("Allow Partial Override (Cal Sources)", value=False)
+
+    az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
+    max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
+    cryo_stabilization_time = st.number_input("Cryo Stabilization Time (seconds)", value=180)
+
     corotator = st.text_input("Corotator Angle [float, None, or Locked]", value="None")
     try:
         corotator = float(corotator)
     except ValueError:
         pass
 
-    # cal_targets = st.text_input("Calibration Targets (comma-separated)")
-
-    no_cmb = st.checkbox("No CMB", value=False)
-    az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
-    az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
-    iv_cadence = st.number_input("IV Cadence (seconds)", value=14400)
-    relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
-    bias_step_cadence = st.number_input("Bias Step Cadence (seconds)", value=1800)
-    max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
-    cryo_stabilization_time = st.number_input("Cryo Stabilization Time", value=180)
-
-with right_column:
-    start_time = st.time_input("Start time (UTC)", value=dt.datetime.utcnow().time(), key='start_time')
-    end_time = st.time_input("End time (UTC)", value=dt.datetime.utcnow().time(), key='end_time')
-
-    az_motion_override = st.checkbox("Az Motion Override", value=False)
-    apply_corotator_rotation = st.checkbox("Apply Corotator Rotation", value=False)
-    elevations_under_90 = st.checkbox("Elevations Under 90", value=True)
-    open_shutter = st.checkbox("Open Shutter", value=True)
-    close_shutter = st.checkbox("Close Shutter", value=True)
-
-    az_branch_override = st.number_input("Az Branch Override (deg)", value=180.0)
-    allow_partial_override = st.checkbox("Allow Partial Override", value=False)
-    drift_override = st.checkbox("Drift Override", value=True)
-    az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
-    el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
-    xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
-    eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
     corotator_offset = st.number_input("Corotator Offset (deg)", value=0.0)
+
+    # cal_targets = st.text_input("Calibration Targets (comma-separated)")
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
 
@@ -201,10 +281,24 @@ if st.button('Generate Schedule'):
             target['corotator'] = corotator
         policy.add_cal_target(**target)
 
+    if not st.session_state.show_dropdown:
+        init_state = policy.init_state(t0)
+    else:
+        init_state = State(
+            curr_time=t0,
+            az_now=az_now,
+            el_now=el_now,
+            az_speed_now=az_speed_now,
+            az_accel_now=az_accel_now,
+            corotator_now=corotator_now,
+            is_det_setup=is_det_setup,
+            has_active_channels=has_active_channels
+        )
+
     seq = policy.init_seqs(cfile, t0, t1)
     seq = policy.apply(seq)
-    cmds, state = policy.seq2cmd(seq, t0, t1, return_state=True)
-    schedule = policy.cmd2txt(cmds, t0, t1)
+    cmds, state = policy.seq2cmd(seq, t0, t1, state=init_state, return_state=True)
+    schedule = policy.cmd2txt(cmds, t0, t1, state=init_state)
 
     sun_safe = True
     try:
@@ -217,5 +311,8 @@ if st.button('Generate Schedule'):
 
     if not sun_safe:
         st.error("SunCrawer found the schedule is not Sun Safe")
+
+    fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
+    st.pyplot(fig)
 
     st.code(schedule, language="text")

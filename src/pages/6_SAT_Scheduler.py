@@ -1,6 +1,12 @@
 import os
 import yaml
 
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
 import argparse
 import datetime as dt
 from schedlib import utils as u
@@ -14,6 +20,86 @@ from threading import RLock
 logger = u.init_logger(__name__)
 
 _lock = RLock()
+
+def build_table(t0, t1, cfg, seq, cmds, state, platform):
+
+    total_duration = (u.str2datetime(t1) - u.str2datetime(t0)).total_seconds()
+
+    columns = ['#   Start Time UTC', 'Stop Time UTC', 'dur', 'dir', 'rot',  'az', 'el', 'az_speed', 'az_accel', 'name', 'tag']
+    df = pd.DataFrame(columns=columns)
+
+    skip = ['sat.preamble', 'start_time', 'move_to', 'wait_until']
+
+    hwp_dir = state.hwp_dir
+    boresight_rot_now = state.boresight_rot_now
+    az_speed = state.az_speed_now
+    az_accel = state.az_accel_now
+
+    total_cmb_time = 0
+    total_source_time = 0
+    total_wiregrid_time = 0
+    total_setup_time = 0
+
+    for ir in cmds:
+        if ir.name in skip or (ir.t1 - ir.t0).total_seconds() <= 0.01:
+            continue
+        if ir.block is not None:
+            hwp_dir = ir.block.hwp_dir
+            boresight_rot_now = ir.block.boresight_angle
+            tag = ir.block.tag
+            az_speed = ir.block.az_speed
+            az_accel = ir.block.az_accel
+
+            if ir.name == 'sat.cmb_scan':
+                total_cmb_time += (ir.t1 - ir.t0).total_seconds()
+            elif ir.name == 'sat.source_scan':
+                total_source_time += (ir.t1 - ir.t0).total_seconds()
+            elif ir.name == 'sat.wiregrid':
+                total_wiregrid_time += (ir.t1 - ir.t0).total_seconds()
+            else:
+                total_setup_time += (ir.t1 - ir.t0).total_seconds()
+
+        row = {'#   Start Time UTC': ir.t0, 'Stop Time UTC': ir.t1, 'dur': (ir.t1 - ir.t0).total_seconds(), 'dir': hwp_dir, 'rot': boresight_rot_now,
+                'az': np.round(ir.block.az,2), 'el': np.round(ir.block.alt,2),
+                'az_speed': az_speed, 'az_accel': az_accel, 'name': ir.name, 'tag': tag}
+
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+    names = sorted(df['name'].unique())
+    cmap = plt.get_cmap('tab10', len(names))
+    name_colors = {name: cmap(i) for i, name in enumerate(names)}
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for _, row in df.iterrows():
+        ax.barh(
+            y=0,
+            width=row['Stop Time UTC'] - row['#   Start Time UTC'],
+            left=row['#   Start Time UTC'],
+            height=0.4,
+            color=name_colors[row['name']],
+            edgecolor=name_colors[row['name']],
+            label=row['name']
+        )
+
+    ax.axvline(t0, color='black', linestyle='-', linewidth=1.5)
+    ax.axvline(t1, color='black', linestyle='-', linewidth=1.5)
+
+    handles, labels = ax.get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+    ax.legend(unique.values(), unique.keys(), title='Name', loc='upper right')
+
+    ax.set_yticks([])
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+    plt.xticks(rotation=45)
+    plt.title(f"CMB: {np.round(100*total_cmb_time/total_duration,0)}% | Cal: {np.round(100*total_source_time/total_duration,0)}% | WG: "
+                f"{np.round(100*total_wiregrid_time/total_duration,0)}% | Setup: {np.round(100*total_setup_time/total_duration,0)}% | Other: "
+                f"{np.round(100 - 100*(total_setup_time + total_cmb_time + total_source_time + total_wiregrid_time)/total_duration,0)}%")
+    plt.grid(True, axis='x', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+
+    return fig
 
 schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_schedules/')
 # dictionary goes dict[elevation][sun_keepout]
@@ -60,56 +146,60 @@ init_end_date = dt.date.today() + dt.timedelta(days=1)
 with left_column:
     start_date = st.date_input("Start date", value=dt.date.today(), key='start_date')
     end_date = st.date_input("End date", value=init_end_date, key='end_date')
+    start_time = st.time_input("Start time (UTC)", value=dt.datetime.utcnow().time(), key='start_time')
+    end_time = st.time_input("End time (UTC)", value=dt.datetime.utcnow().time(), key='end_time')
 
     platform = st.selectbox("Platform:", options=["satp1", "satp2", "satp3"])
     elevation = st.selectbox("CMB Scan Elevation:", options=[50, 60], index=1)
 
-    use_cal_file = st.checkbox("Use Calibration File", value=False)
-    use_wiregrid_file = st.checkbox("Use Wiregrid File", value=False)
-
-    boresight = st.number_input("Boresight (deg)", value=0.0)
-    # cal_targets = st.text_input("Calibration Targets (comma-separated)")
-
-    no_cmb = st.checkbox("No CMB", value=False)
-    az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
-    az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
     iv_cadence = st.number_input("IV Cadence (seconds)", value=14400)
     relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
     bias_step_cadence = st.number_input("Bias Step Cadence (seconds)", value=1800)
+
+    az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
+    az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
     min_hwp_el = st.number_input("Min HWP Elevation (deg)", value=48.0)
     max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
 
+    boresight = st.number_input("Boresight (deg)", value=0.0)
+    az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
+
 with right_column:
-    start_time = st.time_input("Start time (UTC)", value=dt.datetime.utcnow().time(), key='start_time')
-    end_time = st.time_input("End time (UTC)", value=dt.datetime.utcnow().time(), key='end_time')
+    no_cmb = st.checkbox("No CMB", value=False)
+    use_cal_file = st.checkbox("Use Calibration File", value=False)
+    use_wiregrid_file = st.checkbox("Use Wiregrid File", value=False)
 
     hwp_override = st.checkbox("HWP Override", value=False)
     az_motion_override = st.checkbox("Az Motion Override", value=False)
     home_at_end = st.checkbox("Home at End", value=False)
     disable_hwp = st.checkbox("Disable HWP", value=False)
+
     if platform in ['satp1', 'satp2']:
         brake_default = True
         bore_rot = True
     elif platform in ['satp3']:
         brake_default = False
         bore_rot = False
+
     brake_hwp = st.checkbox("Brake HWP", value=brake_default)
     if platform in ["satp1", "satp2"]:
         apply_boresight_rotation = st.checkbox("Apply Boresight Rotation", value=bore_rot)
     elif platform in ['satp3']:
         apply_boresight_rotation = False
 
-    az_branch_override = st.number_input("Az Branch Override (deg)", value=180.0)
-    allow_partial_override = st.checkbox("Allow Partial Override", value=False)
-    drift_override = st.checkbox("Drift Override", value=True)
+    drift_override = st.checkbox("Drift Override (Cal Sources)", value=True)
+    allow_partial_override = st.checkbox("Allow Partial Override (Cal Sources)", value=False)
+
     wiregrid_az = st.number_input("Wiregrid Azimuth (deg)", value=180.0)
     wiregrid_el = st.number_input("Wiregrid Elevation (deg)", value=48.0, min_value=48.0)
     az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
     el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
     xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
     eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
+
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
+
 
 if "show_dropdown" not in st.session_state:
     st.session_state.show_dropdown = False
@@ -259,7 +349,7 @@ if st.button('Generate Schedule'):
     seq = policy.init_cmb_seqs(t0, t1)
     seq = policy.init_cal_seqs(cfile, wgfile, seq, t0, t1, cal_anchor_time)
     seq = policy.apply(seq)
-    cmds, state = policy.seq2cmd(seq, t0, t1, state=init_state, return_state=True,)
+    cmds, state = policy.seq2cmd(seq, t0, t1, state=init_state, return_state=True)
     schedule = policy.cmd2txt(cmds, t0, t1, state=init_state)
 
     sun_safe = True
@@ -273,5 +363,8 @@ if st.button('Generate Schedule'):
 
     if not sun_safe:
         st.error("SunCrawer found the schedule is not Sun Safe")
+
+    fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
+    st.pyplot(fig)
 
     st.code(schedule, language="text")
