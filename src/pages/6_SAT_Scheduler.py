@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 from schedlib import utils as u
 from schedlib.quality_assurance import SunCrawler
+from schedlib.policies.sat import State
 
 import streamlit as st
 from matplotlib.backends.backend_agg import RendererAgg
@@ -49,7 +50,11 @@ wiregrid_files = {
     }
 }
 
+st.title("SAT Scheduler")
+
+st.subheader("Scheduler Parameters")
 left_column, right_column = st.columns(2)
+
 init_end_date = dt.date.today() + dt.timedelta(days=1)
 
 with left_column:
@@ -101,6 +106,38 @@ with right_column:
     wiregrid_el = st.number_input("Wiregrid Elevation (deg)", value=48.0)
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
+
+
+
+# Track whether dropdown is shown
+if "show_dropdown" not in st.session_state:
+    st.session_state.show_dropdown = False
+
+# Button to toggle the dropdown
+if st.button("Custom State" if not st.session_state.show_dropdown else "Default State"):
+    st.session_state.show_dropdown = not st.session_state.show_dropdown
+
+if st.session_state.show_dropdown:
+    left_column_state, right_column_state = st.columns(2)
+
+    with left_column_state:
+        az_now = st.number_input("Azimuth Now", value=180.0, format="%.2f", key="az_now")
+        el_now = st.number_input("Elevation Now", value=48.0, format="%.2f", key="el_now")
+        az_speed_now = st.number_input("Azimuth Speed Now", value=0.0, format="%.2f", key="az_speed_now")
+        az_accel_now = st.number_input("Azimuth Accel Now", value=0.0, format="%.2f", key="az_accel_now")
+
+    with right_column_state:
+        boresight_rot_now = st.number_input("Boresight Rotation Now", value=0.0, format="%.2f", key="boresight_rot_now")
+        is_det_setup = st.checkbox("Det setup", value=False)
+        has_active_channels = st.checkbox("Active Channels", value=True)
+        hwp_spinning = st.checkbox("HWP Spinning", value=False)
+        hwp_dir = st.radio("HWP Direction", options=["None", "Forward", "Reverse"], index=0)
+
+    if hwp_dir == "None":
+        hwp_dir_val = None
+    else:
+        hwp_dir_val = hwp_dir.lower() == "forward"
+
 
 if st.button('Generate Schedule'):
     t0 = dt.datetime.combine(
@@ -196,13 +233,29 @@ if st.button('Generate Schedule'):
             target['boresight'] = boresight
         policy.add_cal_target(**target)
 
+    if not st.session_state.show_dropdown:
+        init_state = policy.init_state(t0)
+    else:
+        init_state = State(
+            curr_time=t0,
+            az_now=az_now,
+            el_now=el_now,
+            az_speed_now=az_speed_now,
+            az_accel_now=az_accel_now,
+            boresight_rot_now=boresight_rot_now,
+            hwp_spinning=hwp_spinning,
+            hwp_dir=hwp_dir,
+            is_det_setup=is_det_setup,
+            has_active_channels=has_active_channels
+        )
+
     seq = policy.init_cmb_seqs(t0, t1)
     seq = policy.init_cal_seqs(cfile, wgfile, seq, t0, t1, cal_anchor_time)
     seq = policy.apply(seq)
-    cmds, state = policy.seq2cmd(seq, t0, t1, return_state=True)
-    schedule = policy.cmd2txt(cmds, t0, t1)
+    cmds, state = policy.seq2cmd(seq, t0, t1, state=init_state, return_state=True,)
+    schedule = policy.cmd2txt(cmds, t0, t1, state=init_state)
 
-    sun_safe = False
+    sun_safe = True
     try:
         ## check sun safety
         sc = SunCrawler(platform, cmd_txt=schedule, az_offset=az_offset, el_offset=el_offset)
