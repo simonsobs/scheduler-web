@@ -73,11 +73,8 @@ with left_column:
     no_cmb = st.checkbox("No CMB", value=False)
     az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
     az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
-    az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
-    el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
-    xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
-    eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
     iv_cadence = st.number_input("IV Cadence (seconds)", value=14400)
+    relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
     bias_step_cadence = st.number_input("Bias Step Cadence (seconds)", value=1800)
     min_hwp_el = st.number_input("Min HWP Elevation (deg)", value=48.0)
     max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
@@ -89,7 +86,6 @@ with right_column:
     hwp_override = st.checkbox("HWP Override", value=False)
     az_motion_override = st.checkbox("Az Motion Override", value=False)
     home_at_end = st.checkbox("Home at End", value=False)
-    relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
     disable_hwp = st.checkbox("Disable HWP", value=False)
     if platform in ['satp1', 'satp2']:
         brake_default = True
@@ -98,36 +94,52 @@ with right_column:
         brake_default = False
         bore_rot = False
     brake_hwp = st.checkbox("Brake HWP", value=brake_default)
-    apply_boresight_rotation = st.checkbox("Apply Boresight Rotation", value=bore_rot)
+    if platform in ["satp1", "satp2"]:
+        apply_boresight_rotation = st.checkbox("Apply Boresight Rotation", value=bore_rot)
+    elif platform in ['satp3']:
+        apply_boresight_rotation = False
+
     az_branch_override = st.number_input("Az Branch Override (deg)", value=180.0)
     allow_partial_override = st.checkbox("Allow Partial Override", value=False)
     drift_override = st.checkbox("Drift Override", value=True)
     wiregrid_az = st.number_input("Wiregrid Azimuth (deg)", value=180.0)
-    wiregrid_el = st.number_input("Wiregrid Elevation (deg)", value=48.0)
+    wiregrid_el = st.number_input("Wiregrid Elevation (deg)", value=48.0, min_value=48.0)
+    az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
+    el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
+    xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
+    eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
 
 
-
-# Track whether dropdown is shown
 if "show_dropdown" not in st.session_state:
     st.session_state.show_dropdown = False
 
-# Button to toggle the dropdown
-if st.button("Custom State" if not st.session_state.show_dropdown else "Default State"):
+# Toggle function
+def toggle_dropdown():
     st.session_state.show_dropdown = not st.session_state.show_dropdown
 
+# Button with on_click toggle
+st.button(
+    "Custom State" if not st.session_state.show_dropdown else "Default State",
+    on_click=toggle_dropdown
+)
+
+# Conditional content
 if st.session_state.show_dropdown:
     left_column_state, right_column_state = st.columns(2)
 
     with left_column_state:
         az_now = st.number_input("Azimuth Now", value=180.0, format="%.2f", key="az_now")
-        el_now = st.number_input("Elevation Now", value=48.0, format="%.2f", key="el_now")
+        el_now = st.number_input("Elevation Now", value=48.0, format="%.2f", key="el_now", min_value=40.0, max_value=90.0)
         az_speed_now = st.number_input("Azimuth Speed Now", value=0.0, format="%.2f", key="az_speed_now")
         az_accel_now = st.number_input("Azimuth Accel Now", value=0.0, format="%.2f", key="az_accel_now")
 
     with right_column_state:
-        boresight_rot_now = st.number_input("Boresight Rotation Now", value=0.0, format="%.2f", key="boresight_rot_now")
+        if platform in ["satp1", "satp2"]:
+            boresight_rot_now = st.number_input("Boresight Rotation Now", value=0.0, format="%.2f", key="boresight_rot_now")
+        elif platform in ["satp3"]:
+            boresight_rot_now = 0.0
         is_det_setup = st.checkbox("Det setup", value=False)
         has_active_channels = st.checkbox("Active Channels", value=True)
         hwp_spinning = st.checkbox("HWP Spinning", value=False)
