@@ -111,21 +111,17 @@ with right_column:
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
 
-
 if "show_dropdown" not in st.session_state:
     st.session_state.show_dropdown = False
 
-# Toggle function
 def toggle_dropdown():
     st.session_state.show_dropdown = not st.session_state.show_dropdown
 
-# Button with on_click toggle
 st.button(
     "Custom State" if not st.session_state.show_dropdown else "Default State",
     on_click=toggle_dropdown
 )
 
-# Conditional content
 if st.session_state.show_dropdown:
     left_column_state, right_column_state = st.columns(2)
 
@@ -149,7 +145,6 @@ if st.session_state.show_dropdown:
         hwp_dir_val = None
     else:
         hwp_dir_val = hwp_dir.lower() == "forward"
-
 
 if st.button('Generate Schedule'):
     t0 = dt.datetime.combine(
