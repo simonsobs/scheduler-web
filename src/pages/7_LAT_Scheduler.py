@@ -104,13 +104,19 @@ left_column, right_column = st.columns(2)
 
 init_end_date = dt.date.today() + dt.timedelta(days=1)
 
+if "start_time" not in st.session_state:
+    st.session_state.start_time = dt.datetime.utcnow().time()
+
+if "end_time" not in st.session_state:
+    st.session_state.end_time = dt.datetime.utcnow().time()
+
 with left_column:
     platform = "lat"
 
     start_date = st.date_input("Start date", value=dt.date.today(), key='start_date')
     end_date = st.date_input("End date", value=init_end_date, key='end_date')
-    start_time = st.time_input("Start time (UTC)", value=dt.datetime.utcnow().time(), key='start_time')
-    end_time = st.time_input("End time (UTC)", value=dt.datetime.utcnow().time(), key='end_time')
+    start_time = st.time_input("Start time (UTC)", value=st.session_state.start_time, key='start_time')
+    end_time = st.time_input("End time (UTC)", value=st.session_state.end_time, key='end_time')
 
     az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
     az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
@@ -315,4 +321,4 @@ if st.button('Generate Schedule'):
     fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
     st.pyplot(fig)
 
-    st.code(schedule, language="text")
+    st.code(schedule, language="text", line_numbers=True)
