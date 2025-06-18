@@ -175,7 +175,13 @@ with right_column:
     use_cal_file = st.checkbox("Use Calibration File", value=False)
     use_wiregrid_file = st.checkbox("Use Wiregrid File", value=False)
 
-    hwp_override = st.checkbox("HWP Override", value=False)
+    hwp_override = st.radio("HWP Override", options=["None", "Forward (CCW)", "Reverse (CW)"], index=0)
+
+    if hwp_override == "None":
+        hwp_override = None
+    else:
+        hwp_override = hwp_override.lower() == "forward (ccw)"
+
     az_motion_override = st.checkbox("Az Motion Override", value=False)
     home_at_end = st.checkbox("Home at End", value=False)
     disable_hwp = st.checkbox("Disable HWP", value=False)
@@ -256,12 +262,12 @@ with right_column_outer:
             is_det_setup = st.checkbox("Det setup", value=False)
             has_active_channels = st.checkbox("Active Channels", value=True)
             hwp_spinning = st.checkbox("HWP Spinning", value=False)
-            hwp_dir = st.radio("HWP Direction", options=["None", "Forward", "Reverse"], index=0)
+            hwp_dir = st.radio("HWP Direction", options=["None", "Forward (CCW)", "Reverse (CW)"], index=0)
 
         if hwp_dir == "None":
-            hwp_dir_val = None
+            hwp_dir = None
         else:
-            hwp_dir_val = hwp_dir.lower() == "forward"
+            hwp_dir = hwp_dir.lower() == "forward (ccw)"
 
 if st.button('Generate Schedule'):
     t0 = dt.datetime.combine(
@@ -394,4 +400,4 @@ if st.button('Generate Schedule'):
     fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
     st.pyplot(fig)
 
-    st.code(schedule, language="text", line_numbers=True)
+    st.code(schedule, language="text", line_numbers=True, height=500)
