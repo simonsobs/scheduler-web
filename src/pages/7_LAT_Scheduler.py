@@ -156,30 +156,52 @@ with right_column:
     # outfile = st.text_input("Output Filename")
     # cal_anchor_time = st.text_input("Calibration Anchor Time")
 
-if "show_dropdown" not in st.session_state:
-    st.session_state.show_dropdown = False
+left_column_outer, right_column_outer = st.columns(2)
 
-def toggle_dropdown():
-    st.session_state.show_dropdown = not st.session_state.show_dropdown
+with left_column_outer:
+    if "show_cal_target_dropdown" not in st.session_state:
+        st.session_state.show_cal_target_dropdown = False
+        cal_targets = []
 
-st.button(
-    "Custom State" if not st.session_state.show_dropdown else "Default State",
-    on_click=toggle_dropdown
-)
+    def toggle_dropdown():
+        st.session_state.show_cal_target_dropdown = not st.session_state.show_cal_target_dropdown
 
-if st.session_state.show_dropdown:
-    left_column_state, right_column_state = st.columns(2)
+    st.button(
+        "Add Cal Targets" if not st.session_state.show_cal_target_dropdown else "Adding Cal Targets",
+        on_click=toggle_dropdown
+    )
 
-    with left_column_state:
-        az_now = st.number_input("Azimuth Now", value=180.0, format="%.2f", key="az_now")
-        el_now = st.number_input("Elevation Now", value=60.0, format="%.2f", key="el_now", min_value=40.0, max_value=90.0)
-        az_speed_now = st.number_input("Azimuth Speed Now", value=0.0, format="%.2f", key="az_speed_now")
-        az_accel_now = st.number_input("Azimuth Accel Now", value=0.0, format="%.2f", key="az_accel_now")
+    if st.session_state.show_cal_target_dropdown:
+        yaml_input = st.text_area("Cal Targets", value="", height=200)
+        cal_targets = yaml.safe_load(yaml_input)
+    else:
+        cal_targets = []
 
-    with right_column_state:
-        corotator_now = st.number_input("Corotator Rotation Now", value=0.0, format="%.2f", key="boresight_rot_now")
-        is_det_setup = st.checkbox("Det setup", value=False)
-        has_active_channels = st.checkbox("Active Channels", value=True)
+with right_column_outer:
+    if "show_state_dropdown" not in st.session_state:
+        st.session_state.show_state_dropdown = False
+
+    def toggle_dropdown():
+        st.session_state.show_state_dropdown = not st.session_state.show_state_dropdown
+
+    st.button(
+        "Custom State" if not st.session_state.show_state_dropdown else "Default State",
+        on_click=toggle_dropdown
+    )
+
+    if st.session_state.show_state_dropdown:
+        left_column_state, right_column_state = st.columns(2)
+
+        with left_column_state:
+            az_now = st.number_input("Azimuth Now", value=180.0, format="%.2f", key="az_now")
+            el_now = st.number_input("Elevation Now", value=60.0, format="%.2f", key="el_now", min_value=40.0, max_value=90.0)
+            az_speed_now = st.number_input("Azimuth Speed Now", value=0.0, format="%.2f", key="az_speed_now")
+            az_accel_now = st.number_input("Azimuth Accel Now", value=0.0, format="%.2f", key="az_accel_now")
+
+        with right_column_state:
+            corotator_now = st.number_input("Corotator Rotation Now", value=0.0, format="%.2f", key="boresight_rot_now")
+            is_det_setup = st.checkbox("Det setup", value=False)
+            has_active_channels = st.checkbox("Active Channels", value=True)
 
 if st.button('Generate Schedule'):
     t0 = dt.datetime.combine(
@@ -192,7 +214,7 @@ if st.button('Generate Schedule'):
     t0_state_file = None
     cal_anchor_time = None
     remove_targets = []
-    cal_targets = []
+    # cal_targets = []
 
     assert platform in ['lat'], (f"{platform} is not an "
             "implemented platform, you can only choose lat")
@@ -287,7 +309,7 @@ if st.button('Generate Schedule'):
             target['corotator'] = corotator
         policy.add_cal_target(**target)
 
-    if not st.session_state.show_dropdown:
+    if not st.session_state.show_state_dropdown:
         init_state = policy.init_state(t0)
     else:
         init_state = State(
