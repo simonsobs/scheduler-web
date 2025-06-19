@@ -7,11 +7,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+import importlib
+
 import argparse
 import datetime as dt
 from schedlib import utils as u, source as src
 from schedlib.quality_assurance import SunCrawler
-from schedlib.policies.lat import LATPolicy as Policy, State
+import schedlib.policies.lat as lat
+importlib.reload(lat)
+State = lat.State
+Policy = lat.LATPolicy
 from typing import Union
 
 import streamlit as st

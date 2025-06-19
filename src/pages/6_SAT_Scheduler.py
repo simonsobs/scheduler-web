@@ -7,11 +7,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+import importlib
+
 import argparse
 import datetime as dt
 from schedlib import utils as u
 from schedlib.quality_assurance import SunCrawler
-from schedlib.policies.sat import State
+import schedlib.policies.sat as sat
+importlib.reload(sat)
+State = sat.State
 
 import streamlit as st
 from matplotlib.backends.backend_agg import RendererAgg
@@ -283,11 +287,17 @@ if st.button('Generate Schedule'):
 
     match platform:
         case "satp1":
-            from schedlib.policies.satp1 import SATP1Policy as Policy
+            import schedlib.policies.satp1 as satp1
+            importlib.reload(satp1)
+            Policy = satp1.SATP1Policy
         case "satp2":
-            from schedlib.policies.satp2 import SATP2Policy as Policy
+            import schedlib.policies.satp2 as satp2
+            importlib.reload(satp2)
+            Policy = satp2.SATP2Policy
         case "satp3":
-            from schedlib.policies.satp3 import SATP3Policy as Policy
+            import schedlib.policies.satp3 as satp3
+            importlib.reload(satp3)
+            Policy = satp3.SATP3Policy
 
     if no_cmb:
         sfile = os.path.join(schedule_base_dir, "empty_cmb.txt")
