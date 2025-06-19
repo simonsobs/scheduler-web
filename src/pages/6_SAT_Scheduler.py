@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 import importlib
+from importlib.metadata import version
 
 import argparse
 import datetime as dt
@@ -141,6 +142,12 @@ wiregrid_files = {
 }
 
 st.title("SAT Scheduler")
+
+try:
+    schedlib_version = version("schedlib")
+    st.markdown(f"**schedlib version:** `{schedlib_version}`")
+except PackageNotFoundError:
+    st.error("schedlib is not installed or version metadata is missing.")
 
 st.subheader("Scheduler Parameters")
 left_column, right_column = st.columns(2)

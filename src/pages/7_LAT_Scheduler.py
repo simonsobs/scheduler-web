@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 import importlib
+from importlib.metadata import version
 
 import argparse
 import datetime as dt
@@ -103,6 +104,12 @@ def build_table(t0, t1, cfg, seq, cmds, state, platform):
 schedule_base_dir = os.environ.get("LAT_SCHEDULE_BASE_DIR", 'master_schedules/')
 
 st.title("LAT Scheduler")
+
+try:
+    schedlib_version = version("schedlib")
+    st.markdown(f"**schedlib version:** `{schedlib_version}`")
+except PackageNotFoundError:
+    st.error("schedlib is not installed or version metadata is missing.")
 
 st.subheader("Scheduler Parameters")
 left_column, right_column = st.columns(2)
