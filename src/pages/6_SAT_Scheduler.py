@@ -410,4 +410,4 @@ if st.button('Generate Schedule'):
     fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
     st.pyplot(fig)
 
-    st.code(schedule, language="text", line_numbers=True, height=500)
+    st.code(schedule, language="python", line_numbers=True, height=500)
