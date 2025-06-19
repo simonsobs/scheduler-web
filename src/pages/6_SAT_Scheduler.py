@@ -153,6 +153,9 @@ if "start_time" not in st.session_state:
 if "end_time" not in st.session_state:
     st.session_state.end_time = dt.datetime.utcnow().time()
 
+if "boresight_override" not in st.session_state:
+    st.session_state.boresight_override = False
+
 with left_column:
     start_date = st.date_input("Start date", value=dt.date.today(), key='start_date')
     end_date = st.date_input("End date", value=init_end_date, key='end_date')
@@ -170,8 +173,6 @@ with left_column:
     az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
     min_hwp_el = st.number_input("Min HWP Elevation (deg)", value=48.0)
     max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
-
-    boresight = st.number_input("Boresight (deg)", value=0.0)
     az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
 
 with right_column:
@@ -180,6 +181,12 @@ with right_column:
     use_wiregrid_file = st.checkbox("Use Wiregrid File", value=False)
 
     hwp_override = st.radio("HWP Override", options=["None", "Forward (CCW)", "Reverse (CW)"], index=0)
+    st.checkbox("Boresight Override", value=st.session_state.boresight_override, key="boresight_override")
+
+    if st.session_state.boresight_override:
+        boresight = st.number_input("Boresight (deg)", value=0.0)
+    else:
+        boresight = None
 
     if hwp_override == "None":
         hwp_override = None
