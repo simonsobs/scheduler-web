@@ -7,6 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+import plotly.graph_objects as go
+import plotly.express as px
+
 import importlib
 from importlib.metadata import version
 
@@ -67,40 +70,83 @@ def build_table(t0, t1, cfg, seq, cmds, state, platform):
 
         df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
-    names = sorted(df['name'].unique())
-    cmap = plt.get_cmap('tab10', len(names))
-    name_colors = {name: cmap(i) for i, name in enumerate(names)}
+    colors = {
+        "lat.cmb_scan": "#009E73",
+        "lat.source_scan": "#0072B2",
+        "lat.det_setup": "#D55E00",
+        "lat.ufm_relock": "#CC79A7",
+        "lat.bias_step": "#56B4E9",
+        "lat.setup_corotator": "#E69F00",
+        "other": "#000000",
+    }
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    times = pd.date_range(t0, t1, freq='1s')
+    z = np.full((1, len(times)), -1, dtype=int)
+    hover_text = np.full((1, len(times)), '', dtype=object)
 
+    names = list(np.unique(df['name']))
+    name_to_idx = {name: i for i, name in enumerate(names)}
+
+    colorscale = []
+    n = len(names)
+    for i, name in enumerate(names):
+        c = colors[name]
+        colorscale.append([i / n, c])
+        colorscale.append([(i + 1) / n, c])
+
+    # Paint rows into z
     for _, row in df.iterrows():
-        ax.barh(
-            y=0,
-            width=row['Stop Time UTC'] - row['#   Start Time UTC'],
-            left=row['#   Start Time UTC'],
-            height=0.4,
-            color=name_colors[row['name']],
-            edgecolor=name_colors[row['name']],
-            label=row['name']
+        start_idx = np.searchsorted(times, row['#   Start Time UTC'], side='left')
+        stop_idx = np.searchsorted(times, row['Stop Time UTC'], side='right')
+        name = row['name'] if row['name'] in name_to_idx else 'other'
+        idx = name_to_idx[name]
+        z[0, start_idx:stop_idx] = idx
+        for i in range(start_idx, stop_idx):
+            hover_text[0, i] = f"{name}<br>{times[i].strftime('%Y-%m-%d %H:%M:%S')}"
+
+    z = np.where(z == -1, np.nan, z)
+
+    ys = ["Operations"]
+
+    title_text = (
+        f"CMB: {np.round(100*total_cmb_time/total_duration,0)}% | "
+        f"Cal: {np.round(100*total_source_time/total_duration,0)}% | "
+        f"Setup: {np.round(100*total_setup_time/total_duration,0)}% | "
+        f"Other: {np.round(100 - 100*(total_cmb_time + total_setup_time + total_source_time)/total_duration,0)}%"
+    )
+
+    heatmap = go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=times,
+            y=ys,
+            text=hover_text,
+            hoverinfo="text",
+            colorscale=colorscale,
+            colorbar=dict(
+                tickvals=list(range(len(names))),
+                ticktext=names,
+            ),
+            zmin=0,
+            zmax=len(names) - 1,
+            ygap=1,
         )
+    )
 
-    ax.axvline(t0, color='black', linestyle='-', linewidth=1.5)
-    ax.axvline(t1, color='black', linestyle='-', linewidth=1.5)
+    heatmap.update_layout(
+        margin=dict(l=40, r=40, t=40, b=40),
+        height=400,
+        xaxis=dict(
+            title="Time",
+            tickformat="%H:%M",
+            tickangle=45,
+            range=[t0, t1]
+        ),
+        yaxis=dict(showticklabels=True),
+        title=title_text
+    )
 
-    handles, labels = ax.get_legend_handles_labels()
-    unique = dict(zip(labels, handles))
-    ax.legend(unique.values(), unique.keys(), title='Name', loc='upper right')
-
-    ax.set_yticks([])
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
-    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    plt.xticks(rotation=45)
-    plt.title(f"CMB: {np.round(100*total_cmb_time/total_duration,0)}% | Cal: {np.round(100*total_source_time/total_duration,0)}% | "
-                f"Setup: {np.round(100*total_setup_time/total_duration,0)}% | Other: {np.round(100 - 100*(total_cmb_time + total_setup_time + total_source_time)/total_duration,0)}%")
-    plt.grid(True, axis='x', linestyle='--', alpha=0.5)
-    plt.tight_layout()
-
-    return fig, df
+    return heatmap, df
 
 schedule_base_dir = os.environ.get("LAT_SCHEDULE_BASE_DIR", 'master_schedules/')
 
@@ -356,7 +402,7 @@ if st.button('Generate Schedule'):
     fig, df = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
 
     with st.expander("Show Observation Plot"):
-        st.pyplot(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Show Ref Table"):
         st.dataframe(df)
