@@ -99,7 +99,8 @@ def build_table(t0, t1, cfg, seq, cmds, state, platform):
                 f"Setup: {np.round(100*total_setup_time/total_duration,0)}% | Other: {np.round(100 - 100*(total_cmb_time + total_setup_time + total_source_time)/total_duration,0)}%")
     plt.grid(True, axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
-    return fig
+
+    return fig, df
 
 schedule_base_dir = os.environ.get("LAT_SCHEDULE_BASE_DIR", 'master_schedules/')
 
@@ -352,7 +353,12 @@ if st.button('Generate Schedule'):
     if not sun_safe:
         st.error("SunCrawer found the schedule is not Sun Safe")
 
-    fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
-    st.pyplot(fig)
+    fig, df = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
+
+    with st.expander("Show Observation Plot"):
+        st.pyplot(fig)
+
+    with st.expander("Show Ref Table"):
+        st.dataframe(df)
 
     st.code(schedule, language="python", line_numbers=True, height=500)

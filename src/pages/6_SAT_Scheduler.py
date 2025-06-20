@@ -104,7 +104,7 @@ def build_table(t0, t1, cfg, seq, cmds, state, platform):
     plt.grid(True, axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
 
-    return fig
+    return fig, df
 
 schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_schedules/')
 # dictionary goes dict[elevation][sun_keepout]
@@ -421,7 +421,12 @@ if st.button('Generate Schedule'):
     if not sun_safe:
         st.error("SunCrawer found the schedule is not Sun Safe")
 
-    fig = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
-    st.pyplot(fig)
+    fig, df = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
+
+    with st.expander("Show Observation Plot"):
+        st.pyplot(fig)
+
+    with st.expander("Show Ref Table"):
+        st.dataframe(df)
 
     st.code(schedule, language="python", line_numbers=True, height=500)
