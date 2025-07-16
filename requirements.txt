@@ -5,6 +5,7 @@ streamlit-sortables
 
 pandas
 pyyaml
+plotly
 sotodlib @ git+https://github.com/simonsobs/sotodlib.git@master
 schedlib @ git+https://github.com/simonsobs/scheduler.git@main
 scheduler-server @ git+https://github.com/simonsobs/scheduler-server.git@main
