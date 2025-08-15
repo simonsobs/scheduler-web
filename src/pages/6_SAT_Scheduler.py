@@ -158,34 +158,34 @@ schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_schedules/')
 # dictionary goes dict[elevation][sun_keepout]
 schedule_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, '20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     }
 }
 
 cal_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_planets.txt'),
-        49: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_planets.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_planets.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_planets.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250411_satp1_planets_d-40,-10_e60_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_satp3_planets_d-40,-10_e60_s0.5,0.8_a49_j2025-02-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/with_wafers/2025-07-30T00:00:00+00:00_2025-10-30T00:00:00+00:00_satp1_e60_a41_merged.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/with_wafers/20250625_satp3_e60_a49_planets.txt'),
     }
 }
 
 wiregrid_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
-        49: os.path.join(schedule_base_dir, '20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
-        49: os.path.join(schedule_base_dir, '20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
     }
 }
 

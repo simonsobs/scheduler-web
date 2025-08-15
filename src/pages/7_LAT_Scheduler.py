@@ -291,13 +291,13 @@ if st.button('Generate Schedule'):
     else:
         sfile = os.path.join(
             schedule_base_dir,
-            'iso/phase2/2025-07-23T14:39:08+00:00_phase2_cmb_lat_field_schedule.txt'
+            'LAT-scan-schedules/iso/phase2/2025-07-23T14:39:08+00:00_phase2_cmb_lat_field_schedule.txt'
         )
 
     if use_cal_file:
         cfile = os.path.join(
             schedule_base_dir,
-            'iso/phase2/2025-05-22T17:29:30+00:00_calibration_lat_field_schedule.txt'
+            'LAT-scan-schedules/iso/phase2/2025-05-22T17:29:30+00:00_calibration_lat_field_schedule.txt'
         )
     else:
         cfile = None
