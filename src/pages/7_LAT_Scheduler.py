@@ -272,7 +272,8 @@ if st.button('Generate Schedule'):
     schedule_file = None
     t0_state_file = None
     cal_anchor_time = None
-    remove_targets = []
+    remove_cmb_targets = []
+    remove_cal_targets = []
     # cal_targets = []
 
     assert platform in ['lat'], (f"{platform} is not an "
@@ -291,13 +292,13 @@ if st.button('Generate Schedule'):
     else:
         sfile = os.path.join(
             schedule_base_dir,
-            'iso/phase2/2025-05-23T20:46:10+00:00_phase2_cmb_lat_field_schedule.txt'
+            'LAT-scan-schedules/iso/phase2/2025-07-23T14:39:08+00:00_phase2_cmb_lat_field_schedule.txt'
         )
 
     if use_cal_file:
         cfile = os.path.join(
             schedule_base_dir,
-            'iso/phase2/2025-05-22T17:29:30+00:00_calibration_lat_field_schedule.txt'
+            'LAT-scan-schedules/iso/phase2/2025-05-22T17:29:30+00:00_calibration_lat_field_schedule.txt'
         )
     else:
         cfile = None
@@ -333,7 +334,8 @@ if st.button('Generate Schedule'):
         'cryo_stabilization_time': cryo_stabilization_time,
         'corotator_offset': corotator_offset,
         'elevations_under_90' : elevations_under_90,
-        'remove_targets': tuple(remove_targets),
+        'remove_cmb_targets': remove_cmb_targets,
+        'remove_cal_targets': remove_cal_targets,
         'open_shutter': open_shutter,
         'close_shutter': close_shutter,
         'relock_cadence': relock_cadence,

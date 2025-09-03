@@ -158,34 +158,34 @@ schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_schedules/')
 # dictionary goes dict[elevation][sun_keepout]
 schedule_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a49_j2025-02-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a49_j2025-02-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     }
 }
 
 cal_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a45_j2025-02-15T12:00+00_:00_n365_planets.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365_planets.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_planets.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_planets.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365_planets.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a49_j2025-02-15T12:00+00:00_n365_planets.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/with_wafers/2025-07-30T00:00:00+00:00_2025-10-30T00:00:00+00:00_satp1_e60_a41_merged.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/with_wafers/20250625_satp3_e60_a49_planets.txt'),
     }
 }
 
 wiregrid_files = {
     50 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365_wiregrid.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e50_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365_wiregrid.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a45_j2025-02-15T12:00+00:00_n365_wiregrid.txt'),
-        49: os.path.join(schedule_base_dir, '20250411_d-40,-10_e60_s0.5,0.8_a49_j2025-02-15T12:00+00:00_n365_wiregrid.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365_wiregrid.txt'),
     }
 }
 
@@ -227,6 +227,7 @@ with left_column:
     az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
     az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
     min_hwp_el = st.number_input("Min HWP Elevation (deg)", value=48.0)
+    max_hwp_el = st.number_input("Max HWP Elevation (deg)", value=60.0)
     max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
     az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
 
@@ -237,6 +238,8 @@ with right_column:
 
     hwp_override = st.radio("HWP Override", options=["None", "Forward (CCW)", "Reverse (CW)"], index=0)
     st.checkbox("Boresight Override", value=st.session_state.boresight_override, key="boresight_override")
+
+    force_max_hwp_el = st.checkbox("Force Max HWP El", value=True)
 
     if st.session_state.boresight_override:
         boresight = st.number_input("Boresight (deg)", value=0.0)
@@ -406,6 +409,8 @@ if st.button('Generate Schedule'):
         'iv_cadence': iv_cadence,
         'bias_step_cadence': bias_step_cadence,
         'min_hwp_el': min_hwp_el,
+        'max_hwp_el': max_hwp_el,
+        'force_max_hwp_el': force_max_hwp_el,
         'max_cmb_scan_duration': max_cmb_scan_duration,
         'disable_hwp': disable_hwp,
         'brake_hwp': brake_hwp,
