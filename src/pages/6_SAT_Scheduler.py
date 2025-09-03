@@ -409,6 +409,8 @@ if st.button('Generate Schedule'):
         'iv_cadence': iv_cadence,
         'bias_step_cadence': bias_step_cadence,
         'min_hwp_el': min_hwp_el,
+        'max_hwp_el': max_hwp_el,
+        'force_max_hwp_el': force_max_hwp_el,
         'max_cmb_scan_duration': max_cmb_scan_duration,
         'disable_hwp': disable_hwp,
         'brake_hwp': brake_hwp,
