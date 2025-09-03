@@ -272,7 +272,8 @@ if st.button('Generate Schedule'):
     schedule_file = None
     t0_state_file = None
     cal_anchor_time = None
-    remove_targets = []
+    remove_cmb_targets = []
+    remove_cal_targets = []
     # cal_targets = []
 
     assert platform in ['lat'], (f"{platform} is not an "
@@ -333,7 +334,8 @@ if st.button('Generate Schedule'):
         'cryo_stabilization_time': cryo_stabilization_time,
         'corotator_offset': corotator_offset,
         'elevations_under_90' : elevations_under_90,
-        'remove_targets': tuple(remove_targets),
+        'remove_cmb_targets': remove_cmb_targets,
+        'remove_cal_targets': remove_cal_targets,
         'open_shutter': open_shutter,
         'close_shutter': close_shutter,
         'relock_cadence': relock_cadence,

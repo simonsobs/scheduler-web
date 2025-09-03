@@ -227,6 +227,7 @@ with left_column:
     az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
     az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
     min_hwp_el = st.number_input("Min HWP Elevation (deg)", value=48.0)
+    max_hwp_el = st.number_input("Max HWP Elevation (deg)", value=60.0)
     max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
     az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
 
@@ -237,6 +238,8 @@ with right_column:
 
     hwp_override = st.radio("HWP Override", options=["None", "Forward (CCW)", "Reverse (CW)"], index=0)
     st.checkbox("Boresight Override", value=st.session_state.boresight_override, key="boresight_override")
+
+    force_max_hwp_el = st.checkbox("Force Max HWP El", value=True)
 
     if st.session_state.boresight_override:
         boresight = st.number_input("Boresight (deg)", value=0.0)

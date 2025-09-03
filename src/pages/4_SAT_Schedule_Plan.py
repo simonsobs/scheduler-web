@@ -24,16 +24,12 @@ schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_files/')
 # dictionary goes dict[elevation][sun_keepout]
 schedule_files = {
     50 : {
-        45: os.path.join(schedule_base_dir,
-            'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir,
-            'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     },
     60 : {
-        45: os.path.join(schedule_base_dir,
-            'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir,
-            'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
+        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
+        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
     }
 }
 
@@ -105,7 +101,8 @@ if st.button('Plot Plan'):
         **cfg
     )
 
-    seq = policy.init_seqs(t0, t1)
+    seq = policy.init_cmb_seqs(t0, t1)
+    seq = policy.init_cal_seqs(None, None, seq, t0, t1)
     seq = policy.apply(seq)
 
     data = np.zeros( (0,6))
