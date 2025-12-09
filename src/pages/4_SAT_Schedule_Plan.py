@@ -1,3 +1,4 @@
+import math
 import datetime as dt
 import yaml
 import os
@@ -5,12 +6,17 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import FixedLocator
+import matplotlib.colors as mcolors
+from matplotlib.patches import Rectangle
 
 import streamlit as st
 
 from schedlib.policies.satp1 import SATP1Policy
 from schedlib.policies.satp2 import SATP2Policy
 from schedlib.policies.satp3 import SATP3Policy
+from schedlib.instrument import CalTarget, parse_cal_targets_from_toast_sat
+from dataclasses import replace
 
 from matplotlib.backends.backend_agg import RendererAgg
 from threading import RLock
@@ -20,18 +26,77 @@ _lock = RLock()
 """ How to run this in your own directory
 streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=false --server.fileWatcherType=none --server.port 8075
 """;
-schedule_base_dir = os.environ.get("SCHEDULE_BASE_DIR", 'master_files/')
-# dictionary goes dict[elevation][sun_keepout]
-schedule_files = {
-    50 : {
-        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e50_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
-    },
-    60 : {
-        45: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a45_j2025-06-15T12:00+00:00_n365.txt'),
-        49: os.path.join(schedule_base_dir, 'SAT-scan-schedules/20250625_d-40,-10_e60_t40_s0.5,0.8_a49_j2025-06-15T12:00+00:00_n365.txt'),
-    }
+
+def plot_colortable(colors, ax, *, ncols=4, sort_colors=True):
+    """
+    Plot a color table into a given Matplotlib Axes.
+
+    Parameters
+    ----------
+    colors : dict
+        Mapping of color names to color values.
+    ax : matplotlib.axes.Axes
+        The Axes object where the color table will be drawn.
+    ncols : int, optional
+        Number of columns in the color table (default: 4).
+    sort_colors : bool, optional
+        If True, sort colors by HSV value (default: True).
+    """
+
+    cell_width = 212
+    cell_height = 22
+    swatch_width = 48
+    margin = 12
+
+    # Sort colors if requested
+    if sort_colors:
+        names = sorted(
+            colors, key=lambda c: tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(c))))
+    else:
+        names = list(colors)
+
+    n = len(names)
+    nrows = math.ceil(n / ncols)
+
+    # Configure the passed-in axes
+    ax.set_xlim(0, cell_width * ncols)
+    ax.set_ylim(cell_height * (nrows - 0.5), -cell_height / 2.0)
+    ax.yaxis.set_visible(False)
+    ax.xaxis.set_visible(False)
+    ax.set_axis_off()
+
+    for i, name in enumerate(names):
+        row = i % nrows
+        col = i // nrows
+        y = row * cell_height
+
+        swatch_start_x = cell_width * col
+        text_pos_x = cell_width * col + swatch_width + 7
+
+        ax.text(text_pos_x, y, name, fontsize=14,
+                horizontalalignment='left',
+                verticalalignment='center')
+
+        ax.add_patch(
+            Rectangle(xy=(swatch_start_x, y-9), width=swatch_width,
+                      height=18, facecolor=colors[name], edgecolor='0.7')
+        )
+
+target_colors = {
+    'jupiter':'C0',
+    'saturn':'C1',
+    'taua':'C2',
+    'moon':'C3',
 }
+
+def day_end(day):
+    day = dt.datetime(day.year,day.month,day.day, tzinfo=dt.timezone.utc)
+    return day + dt.timedelta(days=1)
+def day_start(day):
+    return dt.datetime(day.year,day.month,day.day, tzinfo=dt.timezone.utc)
+
+schedule_base_dir = os.environ.get("SAT_SCHED_IN_DIR", '.')
+platform_cfg_dir = os.environ.get("PLATFORM_CFG_DIR", '.')
 
 now = dt.datetime.utcnow()
 init_start_date = now.date()
@@ -47,12 +112,9 @@ with left_column:
         key='end_date',
     )
 
-    platform = st.selectbox(
-        "Platform:",
-       options=["satp1", "satp2", "satp3"],
-    )
-    elevation = st.selectbox(
-        "CMB Scan Elevation:", options=[50,60], index=1
+    run_config = st.selectbox(
+        "Run Config:",
+        options=[f for f in os.listdir(platform_cfg_dir) if ".yaml" in f],
     )
 
 
@@ -66,8 +128,7 @@ with right_column:
         key='end_time'
     )
 
-
-if st.button('Plot Plan'):
+if st.button('Plot Plans'):
     t0 = dt.datetime.combine(
         start_date, start_time, tzinfo=dt.timezone.utc
     )
@@ -75,14 +136,12 @@ if st.button('Plot Plan'):
         end_date, end_time, tzinfo=dt.timezone.utc
     )
 
+    cfgs = yaml.safe_load( open(os.path.join(platform_cfg_dir,run_config), "r"))
+    sfile = os.path.expandvars(cfgs['cmb_plan']) 
+    cfile = os.path.expandvars(cfgs['cal_plan']) 
 
-    sfile = schedule_files[int(elevation)]
-    if platform == 'satp1':
-        sfile = sfile[45] # absorptive baffle runs 45 degree keepout
-    elif platform in ['satp2', 'satp3']:
-        sfile = sfile[49] # reflective baffle runs 49 degree keepout
-    if not os.path.exists(sfile):
-        raise ValueError(f"Schedule file {sfile} does not exist")
+    platform = os.path.expandvars(cfgs['platform'])
+
     print(f"using schedule file {sfile}")
     t0_state_file = None
 
@@ -125,6 +184,26 @@ if st.button('Plot Plan'):
         data, columns=['Datetime', 'Elevation', 'Boresight', 'HWP Direction', 'Scan Speed', 'Scan Accel'],
     )
     st.table(df)
+
+    all_targets = parse_cal_targets_from_toast_sat(cfile)
+    targets = []
+    for target in all_targets:
+        target = replace(
+            target, 
+            t0=target.t0.astimezone(dt.timezone.utc),
+            t1=target.t1.astimezone(dt.timezone.utc),
+        )
+        if target.t1 <= t0-dt.timedelta(days=1):
+            continue
+        if target.t0 >= t1+dt.timedelta(days=1):
+            continue
+
+        targets.append(target)
+    print(f"found {len(targets)} targets this week")
+
+    n_days = int((t1-t0).days)
+    date_bins = t0.date() + np.arange(n_days)*dt.timedelta(days=1)
+
     with _lock:
         fig = plt.figure(figsize=(8,8))
         ax1 = fig.add_subplot(5,1,1)
@@ -180,4 +259,62 @@ if st.button('Plot Plan'):
         ax5.set_ylim(-0.1, 1.1)
         fig.suptitle(t0)
 
+        st.pyplot(fig)
+
+        fig, (ax2, ax) = plt.subplots(
+            2, 1, 
+            figsize=(10, 6),  # Set figure size (width, height)
+            gridspec_kw={'height_ratios': [1, 10]} 
+        )
+        
+        for target in targets:
+            y = np.where( target.t0.date() == date_bins)[0]
+            if len(y) == 0:
+                #print("start of target not this week")
+                continue
+            y=y[0]
+            end = np.min( [target.t1, day_end(date_bins[y])])
+            ax.barh( 
+                y=y, height=[1], 
+                width=(end-target.t0).total_seconds()/3600,
+                left=target.t0.hour+target.t0.minute/60,
+                color=target_colors[target.source],ec='k',
+            )
+
+            ax.text( target.t0.hour+(target.t0.minute+5)/60, y, target.array_query)
+            
+            y2 = np.where( target.t1.date() == date_bins)[0]
+            if len(y2)==0:
+                ## ends off the week
+                continue
+            elif y2[0] != y:
+                ## ends the next day
+                y=y2[0]
+                ax.barh( 
+                    y=y, height=[1], 
+                    width=(target.t1-day_start(date_bins[y])).total_seconds()/3600,
+                    left=0,color=target_colors[target.source],ec='k',
+                )
+                
+
+        ax.set_ylim(6.5, -0.5)
+        ax.set_xlim(0,24)
+        ax.set_xlabel("Time of Day (UTC)", size='large')
+
+        ax.set_yticks( np.arange(n_days))
+        ax.set_yticklabels( date_bins)
+        ax.set_yticks( np.linspace(0.5,n_days-0.5,n_days-1) , minor=True)
+
+        ax.xaxis.grid(
+            True, which='major', linestyle='-', 
+            linewidth=1.0, color='lightgray'
+        )
+        ax.yaxis.grid(
+            True, which='minor', linestyle='-', 
+            linewidth=1.0, color='lightgray'
+        )
+
+        plot_colortable(target_colors, ax2, ncols=4, sort_colors=False)
+        fig.suptitle(f"Calibration Target Plan for Week of {t0.isoformat()}")
+        fig.tight_layout()
         st.pyplot(fig)
