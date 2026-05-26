@@ -134,18 +134,18 @@ def plot_week_sat(ctx, start_dt, stop_dt=None ):
         f"timestamp >= {start} and "
         f"timestamp < {stop}"
     )
-    
+
     times = np.linspace(start, stop, int((stop-start)/300)+1)
     status = np.ones( (len(wafers), len(times), 3 ))
-    
+
     for w, wafer in enumerate(wafers):
         obs_with_wafer = [obs for obs in obs_list if wafer in obs['wafer_slots_list']]
-        
+
         for obs in obs_with_wafer:
             my_color = get_color_for_obs(ctx, obs, wafer)
             tmsk = np.all( [times >= obs['start_time'], times < obs['stop_time']], axis=0)
             status[w][tmsk] = my_color
-            
+
     fig = plt.figure(figsize=(12,2.0))
     plt.imshow(status, origin='lower', aspect='auto', interpolation='nearest',
           extent=[dt.datetime.utcfromtimestamp(start), dt.datetime.utcfromtimestamp(stop), -0.5, 6.5])
@@ -153,16 +153,16 @@ def plot_week_sat(ctx, start_dt, stop_dt=None ):
     return fig
 
 def plot_week_lat(ctx, start_dt, stop_dt=None ):
-    
-    optics_tubes = ['c1', 'i1', 'i3', 'i4', 'i5', 'i6']
+
+    optics_tubes = ['c1', 'i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6']
     wafers = ['ws0', 'ws1', 'ws2']
     tot_wafers = len(wafers)*len(optics_tubes)
-    
+
     start = start_dt.timestamp()
     if stop_dt is None:
         stop_dt = start_dt+dt.timedelta(days=7)
     stop = stop_dt.timestamp()
-    
+
     times = np.linspace(start, stop, int((stop-start)/300)+1)
     status = np.ones( (tot_wafers, len(times), 3 ))
     labels = []
@@ -172,32 +172,32 @@ def plot_week_lat(ctx, start_dt, stop_dt=None ):
             f"timestamp >= {start} and "
             f"timestamp < {stop} and tube_slot == '{tube}'"
         )
-        
+
         for w, wafer in enumerate(wafers):
             labels.append( f"{tube}_{wafer}")
             obs_with_wafer = [obs for obs in obs_list if wafer in obs['wafer_slots_list']]
 
             for obs in obs_with_wafer:
                 my_color = get_color_for_obs(ctx, obs, wafer, tube)
-                
+
                 tmsk = np.all( [times >= obs['start_time'], times < obs['stop_time']], axis=0)
                 status[int(3*t+w)][tmsk] = my_color
-            
-        
+
+
     fig = plt.figure(figsize=(12,5.0))
     plt.imshow(status, origin='lower', aspect='auto', interpolation='nearest',
           extent=[dt.datetime.utcfromtimestamp(start), dt.datetime.utcfromtimestamp(stop), -0.5, tot_wafers-0.5])
     for y in np.arange(len(optics_tubes))*3:
-        plt.hlines(y-0.5, color='k', 
-                   xmin=dt.datetime.utcfromtimestamp(start), 
+        plt.hlines(y-0.5, color='k',
+                   xmin=dt.datetime.utcfromtimestamp(start),
                    xmax=dt.datetime.utcfromtimestamp(stop)
         )
     plt.yticks(np.arange(tot_wafers), labels, )
-    
+
     return fig
 
 now = dt.datetime.utcnow()
-init_start_date = (now - dt.timedelta(days=7)).date() 
+init_start_date = (now - dt.timedelta(days=7)).date()
 init_end_date = now.date()
 
 left_column, right_column = st.columns(2)
@@ -211,17 +211,17 @@ with left_column:
     end_date = st.date_input("End date", value=init_end_date,
         key='end_date',
     )
-    
-    platforms = st.multiselect("Platforms", all_platforms, all_platforms)    
+
+    platforms = st.multiselect("Platforms", all_platforms, all_platforms)
 
 
 with right_column:
-    start_time = st.time_input("Start time (UTC)", 
-        value="now",       
+    start_time = st.time_input("Start time (UTC)",
+        value="now",
         key='start_time'
     )
-    end_time = st.time_input("End time (UTC)", 
-        value="now", 
+    end_time = st.time_input("End time (UTC)",
+        value="now",
         key='end_time'
     )
 
