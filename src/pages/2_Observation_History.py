@@ -184,7 +184,7 @@ def plot_week_lat(ctx, start_dt, stop_dt=None ):
                 status[int(3*t+w)][tmsk] = my_color
 
 
-    fig = plt.figure(figsize=(12,5.0))
+    fig = plt.figure(figsize=(12,10.0))
     plt.imshow(status, origin='lower', aspect='auto', interpolation='nearest',
           extent=[dt.datetime.utcfromtimestamp(start), dt.datetime.utcfromtimestamp(stop), -0.5, tot_wafers-0.5])
     for y in np.arange(len(optics_tubes))*3:
