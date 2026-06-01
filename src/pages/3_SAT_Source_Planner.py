@@ -14,7 +14,7 @@ from streamlit_sortables import sort_items
 from schedlib import policies, core, utils
 from schedlib import rules as ru, source as src, instrument as inst
 
-from schedlib.policies.satp1 import make_geometry
+from schedlib.policies.sat import SATPolicy
 from schedlib.thirdparty import SunAvoidance
 
 from so3g.proj import quat, CelestialSightLine
@@ -26,7 +26,7 @@ import jax.tree_util as tu
 streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=false --server.fileWatcherType=none --server.port 8075
 """;
 
-geometry = make_geometry()
+geometry = SATPolicy.make_geometry()
 
 
 array_focus = {
@@ -163,7 +163,7 @@ with right_column:
     start_time = st.time_input("Start time (UTC)", value=start_time)
     end_time = st.time_input("End time (UTC)", value=end_time)
 
-sources = st.multiselect("Sources", SOURCES, SOURCES)    
+sources = st.multiselect("Sources", SOURCES, SOURCES)
 
 if st.button('Plot Sources'):
     st.session_state['timing']['t0'] = dt.datetime.combine(
@@ -186,7 +186,7 @@ if st.button('Plot Sources'):
     fig = plt.figure(figsize=(8,3.75))
     ax = fig.add_subplot(111)
     sun = SunAvoidance(
-        min_angle=sun_avoid_angle, 
+        min_angle=sun_avoid_angle,
         min_sun_time=sun_avoid_time*60
     )
 
@@ -204,7 +204,7 @@ if st.button('Plot Sources'):
             else:
                 lab=None
             t, az, alt = block.get_az_alt(time_step=30)
-            plt.plot([dt.datetime.utcfromtimestamp(x) for x in t], 
+            plt.plot([dt.datetime.utcfromtimestamp(x) for x in t],
                 alt, f'C{c}-', label=lab)
 
     locator = mdates.AutoDateLocator()
@@ -231,12 +231,12 @@ with st.form("my data",clear_on_submit=False):
     col1, col2, col3 = st.columns(3)
     with col1:
         target = st.radio(
-            "Array Target", 
+            "Array Target",
             ["all", "left", "middle", "right", "bottom", "custom"],
             index=0,
         )
         source = st.radio(
-            "Source to Scan", 
+            "Source to Scan",
             SOURCES,
             index=0,
         )
@@ -297,7 +297,7 @@ with st.form("my data",clear_on_submit=False):
         sun_avoid_time = st.session_state['timing']['sun_avoid_time']
 
         sun = SunAvoidance(
-            min_angle=sun_avoid_angle, 
+            min_angle=sun_avoid_angle,
             min_sun_time=sun_avoid_time*60
         )
         min_dur_rule = ru.make_rule(
@@ -311,7 +311,7 @@ with st.form("my data",clear_on_submit=False):
             array_info=array_info,
             el_bore=elevation,
             drift=True,
-            boresight_rot=boresight, 
+            boresight_rot=boresight,
             allow_partial=True,
         )
         scan_blocks = ces_rule(src_blocks)
@@ -323,7 +323,7 @@ with st.form("my data",clear_on_submit=False):
         for block in scan_blocks:
             fig = plt.figure(figsize=(5,3.75))
             ax = fig.add_subplot(111)
-        
+
             tod = tod_from_block(block)
             #xi_fp, eta_fp = get_focal_plane(tod)
             #ax.scatter(xi_fp, eta_fp, c='k', alpha=0.5)
