@@ -9,7 +9,7 @@ import streamlit as st
 from schedlib import core
 from schedlib import rules as ru, source as src, instrument as inst
 
-from schedlib.policies.lat import make_geometry
+from schedlib.policies.lat import LATPolicy
 from schedlib.thirdparty import SunAvoidance
 
 from so3g.proj import quat, CelestialSightLine
@@ -21,7 +21,7 @@ import jax.tree_util as tu
 streamlit run src/Home.py --server.address=localhost --browser.gatherUsageStats=false --server.fileWatcherType=none --server.port 8075
 """;
 
-geometry = make_geometry()
+geometry = LATPolicy.make_geometry()
 
 
 SOURCES = [
@@ -144,7 +144,7 @@ with right_column:
         step=1,
     )
 
-sources = st.multiselect("Sources", SOURCES, SOURCES)    
+sources = st.multiselect("Sources", SOURCES, SOURCES)
 st.write("Tabled Source info will be added it Table is included in the selected sources.")
 new_sources = pd.DataFrame(
     [
@@ -186,13 +186,13 @@ if st.button('Plot Sources'):
             if not added_sources.add_to_plot[i]:
                 continue
             src.add_fixed_source(
-                added_sources.name[i], 
-                added_sources.ra[i], 
+                added_sources.name[i],
+                added_sources.ra[i],
                 added_sources.dec[i]
             )
             if added_sources.name[i] not in sources:
                 sources.append(added_sources.name[i])
-            
+
     st.session_state['timing']['t0'] = dt.datetime.combine(
         start_date, start_time, tzinfo=dt.timezone.utc
     )
@@ -214,7 +214,7 @@ if st.button('Plot Sources'):
     ax = fig.add_subplot(211)
     ax2 = fig.add_subplot(212)
     sun = SunAvoidance(
-        min_angle=sun_avoid_angle, 
+        min_angle=sun_avoid_angle,
         min_sun_time=sun_avoid_time*60
     )
 
@@ -225,17 +225,17 @@ if st.button('Plot Sources'):
             ls = '-'
         cnum = c%10
         src_blocks = src.source_gen_seq(source.lower(), t0, t1)
-        
+
         for block in src_blocks:
             t, az, alt = block.get_az_alt(time_step=30)
             if np.max(alt) < filter_elevation:
                 print(f"Source {source} skipped, max el = {np.max(alt)}")
                 continue
             ax.plot(
-                [dt.datetime.utcfromtimestamp(x) for x in t], 
+                [dt.datetime.utcfromtimestamp(x) for x in t],
                 alt, f'C{cnum}{ls}', alpha=0.3
             )
-        
+
         src_blocks = core.seq_flatten(sun.apply(src_blocks))
 
         for b,block in enumerate(src_blocks):
@@ -247,7 +247,7 @@ if st.button('Plot Sources'):
             if np.max(alt) < filter_elevation:
                 print(f"Source {source} skipped, max el = {np.max(alt)}")
                 continue
-            ax.plot([dt.datetime.utcfromtimestamp(x) for x in t], 
+            ax.plot([dt.datetime.utcfromtimestamp(x) for x in t],
                 alt, f'C{cnum}{ls}', label=lab)
             ax2.plot(np.mod(az[::120],360), alt[::120], f'C{cnum}{ls}o', label=lab)
 
@@ -279,12 +279,12 @@ with st.form("my data",clear_on_submit=False):
     col1, col2, col3 = st.columns(3)
     with col1:
         target = st.radio(
-            "Array Target", 
+            "Array Target",
             ["custom", "all", "c1", "i1", "i3", "i4", "i5", "i6"],
             index=0,
         )
         source = st.radio(
-            "Source to Scan", 
+            "Source to Scan",
             SOURCES,
             index=0,
         )
@@ -343,23 +343,23 @@ with st.form("my data",clear_on_submit=False):
             st.warning("Plotting source from Table not implemented")
     elif run_calculation:
         arr = [
-            'c1_ws0', 'c1_ws1', 'c1_ws2', 
-            'i1_ws0', 'i1_ws1', 'i1_ws2', 
-            'i3_ws0', 'i3_ws1', 'i3_ws2', 
-            'i4_ws0', 'i4_ws1', 'i4_ws2', 
-            'i5_ws0', 'i5_ws1', 'i5_ws2', 
+            'c1_ws0', 'c1_ws1', 'c1_ws2',
+            'i1_ws0', 'i1_ws1', 'i1_ws2',
+            'i3_ws0', 'i3_ws1', 'i3_ws2',
+            'i4_ws0', 'i4_ws1', 'i4_ws2',
+            'i5_ws0', 'i5_ws1', 'i5_ws2',
             'i6_ws0', 'i6_ws1', 'i6_ws2'
         ]
         x = [
-            c1_ws0, c1_ws1, c1_ws2, 
-            i1_ws0, i1_ws1, i1_ws2, 
-            i3_ws0, i3_ws1, i3_ws2, 
-            i4_ws0, i4_ws1, i4_ws2, 
-            i5_ws0, i5_ws1, i5_ws2, 
+            c1_ws0, c1_ws1, c1_ws2,
+            i1_ws0, i1_ws1, i1_ws2,
+            i3_ws0, i3_ws1, i3_ws2,
+            i4_ws0, i4_ws1, i4_ws2,
+            i5_ws0, i5_ws1, i5_ws2,
             i6_ws0, i6_ws1, i6_ws2,
         ]
 
-        if target == "custom":          
+        if target == "custom":
             target_str = ','.join( [arr[i] for i in range(len(arr)) if x[i]])
         elif target == "all":
             target_str = ','.join( [arr[i] for i in range(len(arr))])
@@ -370,7 +370,7 @@ with st.form("my data",clear_on_submit=False):
             raise ValueError("how did I get here?")
 
         st.write(f"Target String is {target_str}")
-        
+
 
         t0=st.session_state['timing']['t0']
         t1=st.session_state['timing']['t1']
@@ -378,7 +378,7 @@ with st.form("my data",clear_on_submit=False):
         sun_avoid_time = st.session_state['timing']['sun_avoid_time']
 
         sun = SunAvoidance(
-            min_angle=sun_avoid_angle, 
+            min_angle=sun_avoid_angle,
             min_sun_time=sun_avoid_time*60
         )
         min_dur_rule = ru.make_rule(
@@ -392,7 +392,7 @@ with st.form("my data",clear_on_submit=False):
             array_info=array_info,
             el_bore=elevation,
             drift=True,
-            boresight_rot= -1*(elevation-60-corotator), 
+            boresight_rot= -1*(elevation-60-corotator),
             allow_partial=True,
         )
         scan_blocks = ces_rule(src_blocks)
