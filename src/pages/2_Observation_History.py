@@ -25,7 +25,6 @@ colors = {
     'calibration_other': (0, 0, 0),
     'calibration_other_targeted':  np.array([111, 111, 111])/255.,
     'streaming_other': (1, 0, 0),
-
 }
 
 def get_color_for_obs(ctx, obs, wafer, tube=None):

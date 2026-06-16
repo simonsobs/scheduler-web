@@ -248,7 +248,7 @@ with st.form("my data",clear_on_submit=False):
 
         elevation = st.number_input(
             "Elevation (deg)",
-            min_value = 48,
+            min_value = 35,
             max_value = 80,
             value=50,
             step=1,
