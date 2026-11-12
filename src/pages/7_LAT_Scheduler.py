@@ -1,154 +1,34 @@
-import os
-import yaml
-
-import pandas as pd
-import numpy as np
-
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-
-import plotly.graph_objects as go
-import plotly.express as px
-
-import importlib
-from importlib.metadata import version
-
 import argparse
 import datetime as dt
-from schedlib import utils as u, source as src
-from schedlib.quality_assurance import SunCrawler
-import schedlib.policies.lat as lat
-importlib.reload(lat)
-State = lat.State
-Policy = lat.LATPolicy
+import importlib
+import os
+from importlib.metadata import version
+from threading import RLock
 from typing import Union
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
+import yaml
 from matplotlib.backends.backend_agg import RendererAgg
-from threading import RLock
-
-logger = u.init_logger(__name__)
 
 _lock = RLock()
 
-def build_table(t0, t1, cfg, seq, cmds, state, platform):
+# Get gen_schedule
+script_base = os.environ['SCHED_SCRIPTS_DIR']
+module_path = os.path.join(script_base, "lat/gen_schedule.py")
+program = "scheduler_scripts/lat/gen_schedule.py"
+module_name = "_" + program.replace(".py", "").replace("/", ".")
+spec = importlib.util.spec_from_file_location(module_name, module_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
 
-    total_duration = (u.str2datetime(t1) - u.str2datetime(t0)).total_seconds()
-
-    columns = ['#   Start Time UTC', 'Stop Time UTC', 'dur', 'corot',  'az', 'el', 'az_speed', 'az_accel', 'name', 'tag']
-    df = pd.DataFrame(columns=columns)
-
-    skip = ['lat.preamble', 'start_time', 'move_to', 'wait_until']
-
-    corot = state.corotator_now
-    az_speed = state.az_speed_now
-    az_accel = state.az_accel_now
-
-    total_cmb_time = 0
-    total_source_time = 0
-    total_setup_time = 0
-
-    for ir in cmds:
-        if ir.name in skip or (ir.t1 - ir.t0).total_seconds() <= 0.01:
-            continue
-        if ir.block is not None:
-            corot = ir.block.corotator_angle
-            tag = ir.block.tag
-            az_speed = ir.block.az_speed
-            az_accel = ir.block.az_accel
-
-            if ir.name == 'lat.cmb_scan':
-                total_cmb_time += (ir.t1 - ir.t0).total_seconds()
-            elif ir.name == 'lat.source_scan':
-                total_source_time += (ir.t1 - ir.t0).total_seconds()
-            else:
-                total_setup_time += (ir.t1 - ir.t0).total_seconds()
-
-        row = {'#   Start Time UTC': ir.t0, 'Stop Time UTC': ir.t1, 'dur': (ir.t1 - ir.t0).total_seconds(), 'corot': corot,
-                'az': np.round(ir.block.az,2), 'el': np.round(ir.block.alt,2),
-                'az_speed': az_speed, 'az_accel': az_accel, 'name': ir.name, 'tag': tag}
-
-        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-
-    colors = {
-        "lat.cmb_scan": "#009E73",
-        "lat.source_scan": "#0072B2",
-        "lat.det_setup": "#D55E00",
-        "lat.ufm_relock": "#CC79A7",
-        "lat.bias_step": "#56B4E9",
-        "lat.setup_corotator": "#E69F00",
-        "other": "#000000",
-    }
-
-    times = pd.date_range(t0, t1, freq='1s')
-    z = np.full((1, len(times)), -1, dtype=int)
-    hover_text = np.full((1, len(times)), '', dtype=object)
-
-    names = list(np.unique(df['name']))
-    name_to_idx = {name: i for i, name in enumerate(names)}
-
-    colorscale = []
-    n = len(names)
-    for i, name in enumerate(names):
-        c = colors[name]
-        colorscale.append([i / n, c])
-        colorscale.append([(i + 1) / n, c])
-
-    # Paint rows into z
-    for _, row in df.iterrows():
-        start_idx = np.searchsorted(times, row['#   Start Time UTC'], side='left')
-        stop_idx = np.searchsorted(times, row['Stop Time UTC'], side='right')
-        name = row['name'] if row['name'] in name_to_idx else 'other'
-        idx = name_to_idx[name]
-        z[0, start_idx:stop_idx] = idx
-        for i in range(start_idx, stop_idx):
-            hover_text[0, i] = f"{name}<br>{times[i].strftime('%Y-%m-%d %H:%M:%S')}"
-
-    z = np.where(z == -1, np.nan, z)
-
-    ys = ["Operations"]
-
-    title_text = (
-        f"CMB: {np.round(100*total_cmb_time/total_duration,0)}% | "
-        f"Cal: {np.round(100*total_source_time/total_duration,0)}% | "
-        f"Setup: {np.round(100*total_setup_time/total_duration,0)}% | "
-        f"Other: {np.round(100 - 100*(total_cmb_time + total_setup_time + total_source_time)/total_duration,0)}%"
-    )
-
-    heatmap = go.Figure(
-        data=go.Heatmap(
-            z=z,
-            x=times,
-            y=ys,
-            text=hover_text,
-            hoverinfo="text",
-            colorscale=colorscale,
-            colorbar=dict(
-                tickvals=list(range(len(names))),
-                ticktext=names,
-            ),
-            zmin=0,
-            zmax=len(names) - 1,
-            ygap=1,
-        )
-    )
-
-    heatmap.update_layout(
-        margin=dict(l=40, r=40, t=40, b=40),
-        height=400,
-        xaxis=dict(
-            title="Time",
-            tickformat="%H:%M",
-            tickangle=45,
-            range=[t0, t1]
-        ),
-        yaxis=dict(showticklabels=True),
-        title=title_text
-    )
-
-    return heatmap, df
-
-schedule_base_dir = os.environ.get("LAT_SCHEDULE_BASE_DIR", 'master_schedules/')
+# scheduler-configs
+config_base = os.environ['SCHED_CFG_DIR']
 
 st.title("LAT Scheduler")
 
@@ -162,6 +42,8 @@ st.subheader("Scheduler Parameters")
 left_column, right_column = st.columns(2)
 
 init_end_date = dt.date.today() + dt.timedelta(days=1)
+
+cfg = {}
 
 if "start_time" not in st.session_state:
     st.session_state.start_time = dt.datetime.utcnow().time()
@@ -177,43 +59,39 @@ with left_column:
     start_time = st.time_input("Start time (UTC)", value=st.session_state.start_time, key='start_time')
     end_time = st.time_input("End time (UTC)", value=st.session_state.end_time, key='end_time')
 
-    az_speed = st.number_input("Azimuth Speed (deg/s)", value=0.5)
-    az_accel = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
-    az_offset = st.number_input("Azimuth Offset (deg)", value=0.0)
-    el_offset = st.number_input("Elevation Offset (deg)", value=0.0)
-    xi_offset = st.number_input("Xi Offset (deg)", value=0.0)
-    eta_offset = st.number_input("Eta Offset (deg)", value=0.0)
+    cfg["az_speed"] = st.number_input("Azimuth Speed (deg/s)", value=0.5)
+    cfg["az_accel"] = st.number_input("Azimuth Acceleration (deg/s²)", value=0.25)
+    cfg["az_offset"] = st.number_input("Azimuth Offset (deg)", value=0.0)
+    cfg["el_offset"] = st.number_input("Elevation Offset (deg)", value=0.0)
+    cfg["xi_offset"] = st.number_input("Xi Offset (deg)", value=0.0)
+    cfg["eta_offset"] = st.number_input("Eta Offset (deg)", value=0.0)
 
-    iv_cadence = st.number_input("IV Cadence (seconds)", value=14400)
-    relock_cadence = st.number_input("Relock Cadence (seconds)", value=86400)
-    bias_step_cadence = st.number_input("Bias Step Cadence (seconds)", value=1800)
+    cfg["iv_cadence"] = st.number_input("IV Cadence (seconds)", value=14400)
+    cfg["relock_cadence"] = st.number_input("Relock Cadence (seconds)", value=86400)
+    cfg["bias_step_cadence"] = st.number_input("Bias Step Cadence (seconds)", value=1800)
 
 with right_column:
     use_cal_file = st.checkbox("Use Calibration File", value=False)
     no_cmb = st.checkbox("No CMB", value=False)
-    az_motion_override = st.checkbox("Az Motion Override", value=False)
-    apply_corotator_rotation = st.checkbox("Apply Corotator Rotation", value=False)
-    elevations_under_90 = st.checkbox("Elevations Under 90", value=True)
-    open_shutter = st.checkbox("Open Shutter", value=True)
-    close_shutter = st.checkbox("Close Shutter", value=True)
-    drift_override = st.checkbox("Drift Override (Cal Sources)", value=True)
-    allow_partial_override = st.checkbox("Allow Partial Override (Cal Sources)", value=False)
+    cfg["az_motion_override"] = st.checkbox("Az Motion Override", value=False)
+    cfg["apply_corotator_rot"] = st.checkbox("Apply Corotator Rotation", value=False)
+    cfg["elevations_under_90"] = st.checkbox("Elevations Under 90", value=True)
+    cfg["open_shutter"] = st.checkbox("Open Shutter", value=True)
+    cfg["close_shutter"] = st.checkbox("Close Shutter", value=True)
+    cfg["drift_override"] = st.checkbox("Drift Override (Cal Sources)", value=True)
+    cfg["allow_partial_override"] = st.checkbox("Allow Partial Override (Cal Sources)", value=False)
 
-    az_branch_override = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
-    max_cmb_scan_duration = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
-    cryo_stabilization_time = st.number_input("Cryo Stabilization Time (seconds)", value=180)
+    cfg["az_branch_override"] = st.number_input("Az Branch Override (deg) (Cal Sources)", value=180.0)
+    cfg["max_cmb_scan_duration"] = st.number_input("Max CMB Scan Duration (seconds)", value=3600)
+    cfg["cryo_stabilization_time"] = st.number_input("Cryo Stabilization Time (seconds)", value=180)
 
-    corotator = st.text_input("Corotator Angle [float, None, or Locked]", value="None")
+    cfg["corotator_override"] = st.text_input("Corotator Angle [float, None, or Locked]", value="None")
     try:
-        corotator = float(corotator)
+        cfg["corotator_override"] = float(cfg["corotator_override"])
     except ValueError:
-        pass
+        cfg["corotator_override"] = None if cfg["corotator_override"].lower() == "none" else cfg["corotator_override"]
 
-    corotator_offset = st.number_input("Corotator Offset (deg)", value=0.0)
-
-    # cal_targets = st.text_input("Calibration Targets (comma-separated)")
-    # outfile = st.text_input("Output Filename")
-    # cal_anchor_time = st.text_input("Calibration Anchor Time")
+    cfg["corotator_offset"] = st.number_input("Corotator Offset (deg)", value=0.0)
 
 left_column_outer, right_column_outer = st.columns(2)
 
@@ -263,150 +141,43 @@ with right_column_outer:
             has_active_channels = st.checkbox("Active Channels", value=True)
 
 if st.button('Generate Schedule'):
-    t0 = dt.datetime.combine(
+
+    os.environ["PLATFORM_CFG_DIR"] = os.path.join(config_base, "lat/daq-lat/configs/")
+    os.environ["LAT_SCHED_IN_DIR"] = os.path.join(config_base, "lat/daq-lat/ref_plans/")
+
+    try:
+        with open(os.path.join(config_base, "lat/daq-lat/configs/run_lat.yaml")) as f:
+            f = os.path.expandvars(f.read())
+        config = yaml.safe_load(f)
+    except:
+        raise ValueError(f"Failed to parse yaml config {config_path}: {e}")
+
+    platform_cfg = yaml.safe_load(open(config["platform_cfg_path"], 'r'))
+
+    for k, v in cfg.items():
+        platform_cfg["config"][k] = v
+
+    config["platform_cfg_path"] = platform_cfg
+    config["state_mode"] = False
+    config["t0"] = dt.datetime.combine(
         start_date, start_time, tzinfo=dt.timezone.utc
     )
-    t1 = dt.datetime.combine(
+    config["t1"] = dt.datetime.combine(
         end_date, end_time, tzinfo=dt.timezone.utc
     )
-    schedule_file = None
-    t0_state_file = None
-    cal_anchor_time = None
-    remove_cmb_targets = []
-    remove_cal_targets = []
-    # cal_targets = []
 
-    assert platform in ['lat'], (f"{platform} is not an "
-            "implemented platform, you can only choose lat")
+    config["save_schedule"] = False
+    config["make_table"] = True
+    config["save_table"] = False
+    config["show_plot"] = False
+    config["save_plot"] = False
 
-    if relock_cadence == "None":
-            relock_cadence = None
-
-    if no_cmb:
-        sfile = os.path.join(
-            schedule_base_dir,
-            "empty_cmb.txt"
-        )
-    elif schedule_file is not None:
-        sfile = schedule_file
-    else:
-        sfile = os.path.join(
-            schedule_base_dir,
-            'LAT-scan-schedules/iso/phase2/2025-07-23T14:39:08+00:00_phase2_cmb_lat_field_schedule.txt'
-        )
-
-    if use_cal_file:
-        cfile = os.path.join(
-            schedule_base_dir,
-            'LAT-scan-schedules/iso/phase2/2025-05-22T17:29:30+00:00_calibration_lat_field_schedule.txt'
-        )
-    else:
-        cfile = None
-
-    if (not t0_state_file is None) and (not os.path.exists(t0_state_file)):
-        print(f"Not using state file {t0_state_file} because it doesn't exist")
-        t0_state_file = None
-
-
-    # scheduler runs with the corotator "locked to elevation axis" if
-    # corotator_override is None. But I am worried the None might get
-    # confusing so we'll enable the passing of "locked" as well
-
-    if type(corotator)==str:
-        if corotator.lower() == 'locked':
-            corotator = None
-        elif corotator.lower() == 'none':
-            corotator = None
-
-    cfg = {
-        'az_speed': az_speed,
-        'az_accel': az_accel,
-        'az_offset': az_offset,
-        'el_offset': el_offset,
-        'xi_offset': xi_offset,
-        'eta_offset': eta_offset,
-        'iv_cadence': iv_cadence,
-        'bias_step_cadence': bias_step_cadence,
-        'max_cmb_scan_duration': max_cmb_scan_duration,
-        'az_motion_override': az_motion_override,
-        'corotator_override': corotator,
-        'apply_corotator_rot': apply_corotator_rotation,
-        'cryo_stabilization_time': cryo_stabilization_time,
-        'corotator_offset': corotator_offset,
-        'elevations_under_90' : elevations_under_90,
-        'remove_cmb_targets': remove_cmb_targets,
-        'remove_cal_targets': remove_cal_targets,
-        'open_shutter': open_shutter,
-        'close_shutter': close_shutter,
-        'relock_cadence': relock_cadence,
-        'az_branch_override': az_branch_override,
-        'allow_partial_override': allow_partial_override,
-        'drift_override': drift_override,
-        'az_stow' : 180,
-        'el_stow' : 60,
-    }
-
-    policy = Policy.from_defaults(
-        master_file=sfile,
-        state_file = t0_state_file,
-        **cfg
-    )
-    policy.cal_targets = []
-    for target in cal_targets:
-        if target['source'] not in src.get_source_list():
-            assert 'ra' in target and 'dec' in target, "need RA and DEC"
-            src.add_fixed_source(
-                name=target['source'],
-                ra=target['ra'], dec=target['dec'],
-                ra_units='deg'
-            )
-        if 'ra' in target:
-            target.pop("ra")
-        if 'dec' in target:
-            target.pop("dec")
-        if 'elevation' not in target:
-            target['elevation'] = elevation
-        if 'corotator' not in target:
-            target['corotator'] = corotator
-        policy.add_cal_target(**target)
-
-    if not st.session_state.show_state_dropdown:
-        init_state = policy.init_state(t0)
-    else:
-        init_state = State(
-            curr_time=t0,
-            az_now=az_now,
-            el_now=el_now,
-            az_speed_now=az_speed_now,
-            az_accel_now=az_accel_now,
-            corotator_now=corotator_now,
-            is_det_setup=is_det_setup,
-            has_active_channels=has_active_channels
-        )
-
-    seq = policy.init_seqs(cfile, t0, t1)
-    seq = policy.apply(seq)
-    cmds, state = policy.seq2cmd(seq, t0, t1, state=init_state, return_state=True)
-    schedule = policy.cmd2txt(cmds, t0, t1, state=init_state)
-
-    sun_safe = True
-    try:
-        ## check sun safety
-        sc = SunCrawler(platform, cmd_txt=schedule, az_offset=az_offset, el_offset=el_offset)
-        sc.step_thru_schedule()
-    except Exception as e:
-        print("SCHEDULE NOT SUN SAFE")
-        sun_safe=False
-
-    if not sun_safe:
-        st.error("SunCrawer found the schedule is not Sun Safe")
-
-    fig, df = build_table(t0, t1, cfg, seq, cmds, init_state, platform)
+    schedule, table, fig = module.main(**config)
 
     with st.expander("Show Observation Plot"):
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with st.expander("Show Ref Table"):
-        st.dataframe(df)
+        st.dataframe(table)
 
     st.code(schedule, language="python", line_numbers=True, height=500)
